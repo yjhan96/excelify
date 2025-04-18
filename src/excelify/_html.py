@@ -87,6 +87,10 @@ class HTMLFormatter:
                             self.elements.append(html.escape(columns[c]))
 
     def write_body(self) -> None:
+        from excelify import CellMapping
+
+        mapping = CellMapping(self.df.columns, start_pos=(0, 0))
+
         with Tag(self.elements, "tbody"):
             for r in self.row_idx:
                 with Tag(self.elements, "tr"):
@@ -96,7 +100,7 @@ class HTMLFormatter:
                                 self.elements.append("&hellip;")
                             else:
                                 self.elements.append(
-                                    html.escape(self.df[r][c].to_html())
+                                    html.escape(self.df.to_html_val(r, c, mapping))
                                 )
 
     def render(self) -> list[str]:
