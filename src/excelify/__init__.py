@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import copy
 from collections import namedtuple
 from typing import Any
 import polars as pl
@@ -51,7 +50,7 @@ class Constant(CellExpr):
         self._last_value = self.value
 
 
-class Cell(CellExpr):
+class CellRef(CellExpr):
     def __init__(self, element: Element, ref_cell: CellExpr):
         super().__init__(element)
         self._ref_cell = ref_cell
@@ -96,7 +95,7 @@ class Col(Expr):
         self._col_name = col_name
 
     def cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
-        return Cell((self._name, idx), df[self._col_name][idx])
+        return CellRef((self._name, idx), df[self._col_name][idx])
 
     def _fallback_repr(self) -> str:
         return f"Ref({self._col_name})"
