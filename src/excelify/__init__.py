@@ -39,6 +39,7 @@ class CellExpr(ABC):
 
 class Constant(CellExpr):
     def __init__(self, value: int | float):
+        super().__init__()
         self.value = value
 
     @property
@@ -54,6 +55,7 @@ class Constant(CellExpr):
 
 class CellRef(CellExpr):
     def __init__(self, cell_ref: "Cell"):
+        super().__init__()
         self._cell_ref = cell_ref
 
     @property
@@ -61,10 +63,102 @@ class CellRef(CellExpr):
         return [self._cell_ref]
 
     def to_formula(self, mapping: "CellMapping") -> str:
-        return f"={mapping[self._cell_ref.element]}"
+        return mapping[self._cell_ref.element]
 
     def compute(self) -> None:
         self._last_value = self._cell_ref.last_value
+
+
+class Mult(CellExpr):
+    def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
+        super().__init__()
+        self._left_cell_expr = left_cell_expr
+        self._right_cell_expr = right_cell_expr
+
+    @property
+    def dependencies(self) -> list["Cell"]:
+        return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
+
+    def to_formula(self, mapping: "CellMapping") -> str:
+        return f"""({self._left_cell_expr.to_formula(mapping)} * {
+            self._right_cell_expr.to_formula(mapping)
+        })"""
+
+    def compute(self) -> None:
+        self._left_cell_expr.compute()
+        self._right_cell_expr.compute()
+        self._last_value = (
+            self._left_cell_expr.last_value * self._right_cell_expr.last_value
+        )
+
+
+class Add(CellExpr):
+    def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
+        super().__init__()
+        self._left_cell_expr = left_cell_expr
+        self._right_cell_expr = right_cell_expr
+
+    @property
+    def dependencies(self) -> list["Cell"]:
+        return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
+
+    def to_formula(self, mapping: "CellMapping") -> str:
+        return f"""({self._left_cell_expr.to_formula(mapping)} + {
+            self._right_cell_expr.to_formula(mapping)
+        })"""
+
+    def compute(self) -> None:
+        self._left_cell_expr.compute()
+        self._right_cell_expr.compute()
+        self._last_value = (
+            self._left_cell_expr.last_value + self._right_cell_expr.last_value
+        )
+
+
+class Div(CellExpr):
+    def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
+        super().__init__()
+        self._left_cell_expr = left_cell_expr
+        self._right_cell_expr = right_cell_expr
+
+    @property
+    def dependencies(self) -> list["Cell"]:
+        return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
+
+    def to_formula(self, mapping: "CellMapping") -> str:
+        return f"""({self._left_cell_expr.to_formula(mapping)} / {
+            self._right_cell_expr.to_formula(mapping)
+        })"""
+
+    def compute(self) -> None:
+        self._left_cell_expr.compute()
+        self._right_cell_expr.compute()
+        self._last_value = (
+            self._left_cell_expr.last_value / self._right_cell_expr.last_value
+        )
+
+
+class Sub(CellExpr):
+    def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
+        super().__init__()
+        self._left_cell_expr = left_cell_expr
+        self._right_cell_expr = right_cell_expr
+
+    @property
+    def dependencies(self) -> list["Cell"]:
+        return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
+
+    def to_formula(self, mapping: "CellMapping") -> str:
+        return f"""({self._left_cell_expr.to_formula(mapping)} - {
+            self._right_cell_expr.to_formula(mapping)
+        })"""
+
+    def compute(self) -> None:
+        self._left_cell_expr.compute()
+        self._right_cell_expr.compute()
+        self._last_value = (
+            self._left_cell_expr.last_value - self._right_cell_expr.last_value
+        )
 
 
 class Cell:
@@ -95,8 +189,11 @@ class Expr(ABC):
     def __init__(self):
         self._name = None
 
-    @abstractmethod
     def create_cell(self, df: "ExcelFrame", idx: int) -> Cell:
+        return Cell(Element(str(self), idx), self.get_cell_expr(df, idx))
+
+    @abstractmethod
+    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
         raise NotImplementedError
 
     @abstractmethod
@@ -113,17 +210,115 @@ class Expr(ABC):
         self._name = name
         return self
 
+    def __mul__(self, other) -> "Expr":
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return MultCol(self, other)
+
+    def __add__(self, other) -> "Expr":
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return AddCol(self, other)
+
+    def __radd__(self, other) -> "Expr":
+        return self + other
+
+    def __truediv__(self, other) -> "Expr":
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return DivCol(self, other)
+
+    def __sub__(self, other) -> "Expr":
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return SubCol(self, other)
+
+
+class ConstantExpr(Expr):
+    def __init__(self, value: int | float):
+        self._value = value
+
+    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+        return Constant(self._value)
+
+    def _fallback_repr(self) -> str:
+        return str(self._value)
+
 
 class Col(Expr):
     def __init__(self, col_name: str):
         super().__init__()
         self._col_name = col_name
 
-    def create_cell(self, df: "ExcelFrame", idx: int) -> Cell:
-        return Cell(Element(str(self), idx), CellRef(df[self._col_name][idx]))
+    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+        return CellRef(df[self._col_name][idx])
 
     def _fallback_repr(self) -> str:
         return f"Ref({self._col_name})"
+
+
+class MultCol(Expr):
+    def __init__(self, left_expr: Expr, right_expr: Expr):
+        self._left_expr = left_expr
+        self._right_expr = right_expr
+
+    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+        left_cell_expr = self._left_expr.get_cell_expr(df, idx)
+        right_cell_expr = self._right_expr.get_cell_expr(df, idx)
+        return Mult(left_cell_expr, right_cell_expr)
+
+    def _fallback_repr(self) -> str:
+        return f"Mult({self._left_expr}, {self._right_expr})"
+
+
+class AddCol(Expr):
+    def __init__(self, left_expr: Expr, right_expr: Expr):
+        self._left_expr = left_expr
+        self._right_expr = right_expr
+
+    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+        left_cell_expr = self._left_expr.get_cell_expr(df, idx)
+        right_cell_expr = self._right_expr.get_cell_expr(df, idx)
+        return Add(left_cell_expr, right_cell_expr)
+
+    def _fallback_repr(self) -> str:
+        return f"Add({self._left_expr}, {self._right_expr})"
+
+
+class SubCol(Expr):
+    def __init__(self, left_expr: Expr, right_expr: Expr):
+        self._left_expr = left_expr
+        self._right_expr = right_expr
+
+    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+        left_cell_expr = self._left_expr.get_cell_expr(df, idx)
+        right_cell_expr = self._right_expr.get_cell_expr(df, idx)
+        return Sub(left_cell_expr, right_cell_expr)
+
+    def _fallback_repr(self) -> str:
+        return f"Sub({self._left_expr}, {self._right_expr})"
+
+
+class DivCol(Expr):
+    def __init__(self, left_expr: Expr, right_expr: Expr):
+        self._left_expr = left_expr
+        self._right_expr = right_expr
+
+    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+        left_cell_expr = self._left_expr.get_cell_expr(df, idx)
+        right_cell_expr = self._right_expr.get_cell_expr(df, idx)
+        return Div(left_cell_expr, right_cell_expr)
+
+    def _fallback_repr(self) -> str:
+        return f"Div({self._left_expr}, {self._right_expr})"
 
 
 class CellMapping:
@@ -225,7 +420,7 @@ class ExcelFrame:
             for i, (key, cells) in enumerate(self._input.items()):
                 worksheet.write(i, 0, key)
                 for j, cell in enumerate(cells):
-                    worksheet.write(i, j + 1, cell.to_formula(mapping))
+                    worksheet.write(i, j + 1, f"={cell.to_formula(mapping)}")
 
     def with_column(self, expr: Expr) -> "ExcelFrame":
         height = self.height
