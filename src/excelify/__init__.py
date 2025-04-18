@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from typing import Any
-import polars as pl
 from pathlib import Path
+from typing import Any
+
+import polars as pl
 from xlsxwriter import Workbook
 
 from excelify._html import NotebookFormatter

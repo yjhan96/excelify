@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
-from textwrap import dedent
 import html
 import re
+from textwrap import dedent
+from typing import TYPE_CHECKING, Iterable
 
 if TYPE_CHECKING:
-    from excelify import ExcelFrame
     from types import TracebackType
+
+    from excelify import ExcelFrame
 
 
 def replace_consecutive_spaces(s: str) -> str:
@@ -122,7 +123,6 @@ class HTMLFormatter:
 
 
 class NotebookFormatter(HTMLFormatter):
-
     def write_style(self) -> None:
         style = """\
             <style>
