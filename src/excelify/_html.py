@@ -54,8 +54,8 @@ class HTMLFormatter:
         self.elements: list[str] = []
         self.max_cols = max_cols
         self.max_rows = max_rows
-        self.row_idx: Iterable[int]
-        self.col_idx: Iterable[int]
+        self.row_idx: Iterable[int | None]
+        self.col_idx: Iterable[int | None]
 
         if max_rows < df.height:
             half, rest = divmod(max_rows, 2)
@@ -112,7 +112,7 @@ class HTMLFormatter:
         with Tag(
             self.elements,
             "table",
-            {"border": 1, "class": "dataframe"},
+            {"border": "1", "class": "dataframe"},
         ):
             self.write_header()
             self.write_body()

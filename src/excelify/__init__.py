@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
-from collections import namedtuple
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import polars as pl
 from xlsxwriter import Workbook
@@ -9,7 +8,11 @@ from xlsxwriter import Workbook
 from excelify._html import NotebookFormatter
 
 RawInput = dict
-Element = namedtuple("Element", ["col_name", "idx"])
+
+
+class Element(NamedTuple):
+    col_name: str
+    idx: int
 
 
 class CellExpr(ABC):
@@ -39,10 +42,10 @@ class Constant(CellExpr):
         self.value = value
 
     @property
-    def dependencies(self) -> list[CellExpr]:
+    def dependencies(self) -> list["Cell"]:
         return []
 
-    def to_formula(self, _mapping: "CellMapping") -> str:
+    def to_formula(self, mapping: "CellMapping") -> str:
         return str(self.value)
 
     def compute(self) -> None:
@@ -104,7 +107,7 @@ class Expr(ABC):
         if self._name is not None:
             return self._name
         else:
-            self._fallback_repr()
+            return self._fallback_repr()
 
     def alias(self, name: str) -> "Expr":
         self._name = name
@@ -117,7 +120,7 @@ class Col(Expr):
         self._col_name = col_name
 
     def create_cell(self, df: "ExcelFrame", idx: int) -> Cell:
-        return Cell((self._name, idx), CellRef(df[self._col_name][idx]))
+        return Cell(Element(str(self), idx), CellRef(df[self._col_name][idx]))
 
     def _fallback_repr(self) -> str:
         return f"Ref({self._col_name})"
@@ -176,7 +179,7 @@ class ExcelFrame:
         self._input = {
             key: [
                 (
-                    Cell((key, i), Constant(value))
+                    Cell(Element(key, i), Constant(value))
                     if not isinstance(value, Cell)
                     else value
                 )
