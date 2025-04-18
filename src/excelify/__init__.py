@@ -37,6 +37,22 @@ class CellExpr(ABC):
         return self._last_value
 
 
+class Empty(CellExpr):
+    def __init__(self):
+        super().__init__()
+
+    @property
+    def dependencies(self) -> list["Cell"]:
+        return []
+
+    def to_formula(self, mapping: "CellMapping") -> str:
+        return ""
+
+    def compute(self) -> None:
+        # TODO: Revisit this behavior.
+        self._last_value = 0
+
+
 class Constant(CellExpr):
     def __init__(self, value: int | float):
         super().__init__()
@@ -244,6 +260,7 @@ class Expr(ABC):
 
 class ConstantExpr(Expr):
     def __init__(self, value: int | float):
+        super().__init__()
         self._value = value
 
     def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
@@ -254,19 +271,32 @@ class ConstantExpr(Expr):
 
 
 class Col(Expr):
-    def __init__(self, col_name: str):
+    def __init__(self, col_name: str, offset: int = 0):
         super().__init__()
         self._col_name = col_name
+        self._offset = offset
 
     def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
-        return CellRef(df[self._col_name][idx])
+        cells = df[self._col_name]
+        adjusted_idx = idx + self._offset
+        if adjusted_idx < 0 or adjusted_idx >= len(cells):
+            return Empty()
+        else:
+            return CellRef(df[self._col_name][adjusted_idx])
 
     def _fallback_repr(self) -> str:
         return f"Ref({self._col_name})"
 
+    def prev(self, offset: int) -> "Col":
+        return Col(self._col_name, -offset)
+
+    def next(self, offset: int) -> "Col":
+        return Col(self._col_name, offset)
+
 
 class MultCol(Expr):
     def __init__(self, left_expr: Expr, right_expr: Expr):
+        super().__init__()
         self._left_expr = left_expr
         self._right_expr = right_expr
 
@@ -281,6 +311,7 @@ class MultCol(Expr):
 
 class AddCol(Expr):
     def __init__(self, left_expr: Expr, right_expr: Expr):
+        super().__init__()
         self._left_expr = left_expr
         self._right_expr = right_expr
 
@@ -295,6 +326,7 @@ class AddCol(Expr):
 
 class SubCol(Expr):
     def __init__(self, left_expr: Expr, right_expr: Expr):
+        super().__init__()
         self._left_expr = left_expr
         self._right_expr = right_expr
 
@@ -309,6 +341,7 @@ class SubCol(Expr):
 
 class DivCol(Expr):
     def __init__(self, left_expr: Expr, right_expr: Expr):
+        super().__init__()
         self._left_expr = left_expr
         self._right_expr = right_expr
 
