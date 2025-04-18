@@ -1,0 +1,138 @@
+from pathlib import Path
+
+from xlsxwriter import Workbook
+
+from excelify._cell import Cell
+from excelify._cell_expr import Constant
+from excelify._element import Element
+from excelify._expr import Expr
+from excelify._html import NotebookFormatter
+
+RawInput = dict
+
+
+class CellMapping:
+    def __init__(self, columns: list | dict, start_pos: tuple[int, int]):
+        if isinstance(columns, list):
+            self._columns = {c: i for i, c in enumerate(columns)}
+        else:
+            assert isinstance(columns, dict)
+            self._columns = columns
+        self._start_pos = start_pos
+
+    def _int_to_alpha(self, idx: int) -> str:
+        num_alphabets = 26
+
+        if idx == 0:
+            return "A"
+        result = []
+        while idx > 0:
+            rem = idx % num_alphabets
+            result.append(chr(ord("A") + rem))
+            idx = idx // num_alphabets
+        return "".join(reversed(result))
+
+    def __getitem__(self, element: Element) -> str:
+        start_row, start_col = self._start_pos
+        col_name, idx = element
+        return f"{self._int_to_alpha(idx + start_col + 1)}{self._columns[col_name] + start_row + 1}"
+
+
+def _topological_sort(cells: list[Cell]) -> list[Cell]:
+    visited = set()
+    result = []
+
+    def _sort_deps(cell: Cell, result, visited):
+        element = cell.element
+        visited.add(element)
+        for dep in cell.dependencies:
+            if dep.element not in visited:
+                _sort_deps(dep, result, visited)
+        result.append(cell)
+
+    for cell in cells:
+        element = cell.element
+        if element in visited:
+            continue
+        _sort_deps(cell, result, visited)
+
+    return result
+
+
+class ExcelFrame:
+    def __init__(self, input: RawInput):
+        self._input = {
+            key: [
+                (
+                    Cell(Element(key, i), Constant(value))
+                    if not isinstance(value, Cell)
+                    else value
+                )
+                for i, value in enumerate(values)
+            ]
+            for key, values in input.items()
+        }
+
+    def __getitem__(self, idx_or_column: int | str):
+        if isinstance(idx_or_column, int):
+            # TODO: Come back to this.
+            idx = idx_or_column
+            return [series[idx] for series in self._input.values()]
+        else:
+            column = idx_or_column
+            return self._input[column]
+
+    @property
+    def height(self) -> int:
+        if self.width == 0:
+            return 0
+        return len(next(iter(self._input.values())))
+
+    @property
+    def width(self) -> int:
+        return len(self._input)
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        return (self.height, self.width)
+
+    @property
+    def columns(self) -> list[str]:
+        return list(self._input.keys())
+
+    def _repr_html_(self):
+        return "".join(NotebookFormatter(self).render())
+
+    def write_excel(self, path: Path) -> None:
+        mapping = CellMapping(self.columns, start_pos=(0, 0))
+        with Workbook(path) as wb:
+            worksheet = wb.add_worksheet()
+            for i, (key, cells) in enumerate(self._input.items()):
+                worksheet.write(i, 0, key)
+                for j, cell in enumerate(cells):
+                    worksheet.write(i, j + 1, f"={cell.to_formula(mapping)}")
+
+    def with_column(self, expr: Expr) -> "ExcelFrame":
+        height = self.height
+        self._input[str(expr)] = [expr.create_cell(self, i) for i in range(height)]
+        return self
+
+    def to_html_val(self, r: int, c: int, mapping: CellMapping) -> str:
+        cell_expr = self._input[self.columns[c]][r]
+        return cell_expr.to_formula(mapping)
+
+    def evaluate(self) -> "ExcelFrame":
+        cells = [expr for exprs in self._input.values() for expr in exprs]
+
+        sorted_cells = _topological_sort(cells)
+        for cell in sorted_cells:
+            cell.compute()
+
+        return ExcelFrame(
+            {
+                key: [
+                    Cell(value.element, Constant(value.last_value)) for value in values
+                ]
+                for key, values in self._input.items()
+            }
+        )

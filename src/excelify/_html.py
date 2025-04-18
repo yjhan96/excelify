@@ -88,7 +88,7 @@ class HTMLFormatter:
                             self.elements.append(html.escape(columns[c]))
 
     def write_body(self) -> None:
-        from excelify import CellMapping
+        from excelify._excelframe import CellMapping
 
         mapping = CellMapping(self.df.columns, start_pos=(0, 0))
 
