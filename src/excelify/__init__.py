@@ -12,13 +12,12 @@ Element = namedtuple("Element", ["col_name", "idx"])
 
 
 class CellExpr(ABC):
-    def __init__(self, element: Element):
-        self.element = element
+    def __init__(self):
         self._last_value = None
 
     @property
     @abstractmethod
-    def dependencies(self) -> list["CellExpr"]:
+    def dependencies(self) -> list["Cell"]:
         raise NotImplementedError
 
     @abstractmethod
@@ -35,8 +34,7 @@ class CellExpr(ABC):
 
 
 class Constant(CellExpr):
-    def __init__(self, element: Element, value: int | float):
-        super().__init__(element)
+    def __init__(self, value: int | float):
         self.value = value
 
     @property
@@ -51,19 +49,42 @@ class Constant(CellExpr):
 
 
 class CellRef(CellExpr):
-    def __init__(self, element: Element, ref_cell: CellExpr):
-        super().__init__(element)
-        self._ref_cell = ref_cell
+    def __init__(self, cell_ref: "Cell"):
+        self._cell_ref = cell_ref
 
     @property
-    def dependencies(self) -> list[CellExpr]:
-        return [self._ref_cell]
+    def dependencies(self) -> list["Cell"]:
+        return [self._cell_ref]
 
     def to_formula(self, mapping: "CellMapping") -> str:
-        return f"={mapping[self._ref_cell.element]}"
+        return f"={mapping[self._cell_ref.element]}"
 
     def compute(self) -> None:
-        self._last_value = self._ref_cell.last_value
+        self._last_value = self._cell_ref.last_value
+
+
+class Cell:
+    def __init__(self, element: Element, cell_expr: CellExpr):
+        self._element = element
+        self.cell_expr = cell_expr
+
+    def to_formula(self, mapping: "CellMapping") -> str:
+        return self.cell_expr.to_formula(mapping)
+
+    @property
+    def element(self) -> Element:
+        return self._element
+
+    @property
+    def dependencies(self) -> list["Cell"]:
+        return self.cell_expr.dependencies
+
+    def compute(self) -> None:
+        return self.cell_expr.compute()
+
+    @property
+    def last_value(self) -> Any:
+        return self.cell_expr.last_value
 
 
 class Expr(ABC):
@@ -71,7 +92,7 @@ class Expr(ABC):
         self._name = None
 
     @abstractmethod
-    def cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+    def create_cell(self, df: "ExcelFrame", idx: int) -> Cell:
         raise NotImplementedError
 
     @abstractmethod
@@ -94,8 +115,8 @@ class Col(Expr):
         super().__init__()
         self._col_name = col_name
 
-    def cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
-        return CellRef((self._name, idx), df[self._col_name][idx])
+    def create_cell(self, df: "ExcelFrame", idx: int) -> Cell:
+        return Cell((self._name, idx), CellRef(df[self._col_name][idx]))
 
     def _fallback_repr(self) -> str:
         return f"Ref({self._col_name})"
@@ -128,25 +149,23 @@ class CellMapping:
         return f"{self._int_to_alpha(idx + start_col + 1)}{self._columns[col_name] + start_row + 1}"
 
 
-def _topological_sort(
-    cells: list[CellExpr],
-) -> list[CellExpr]:
+def _topological_sort(cells: list[Cell]) -> list[Cell]:
     visited = set()
     result = []
 
-    def _sort_deps(cell_expr: CellExpr, result, visited):
-        element = cell_expr.element
+    def _sort_deps(cell: Cell, result, visited):
+        element = cell.element
         visited.add(element)
-        for dep in cell_expr.dependencies:
+        for dep in cell.dependencies:
             if dep.element not in visited:
                 _sort_deps(dep, result, visited)
-        result.append(cell_expr)
+        result.append(cell)
 
-    for cell_expr in cells:
-        element = cell_expr.element
+    for cell in cells:
+        element = cell.element
         if element in visited:
             continue
-        _sort_deps(cell_expr, result, visited)
+        _sort_deps(cell, result, visited)
 
     return result
 
@@ -155,7 +174,11 @@ class ExcelFrame:
     def __init__(self, input: RawInput):
         self._input = {
             key: [
-                Constant((key, i), value) if not isinstance(value, CellExpr) else value
+                (
+                    Cell((key, i), Constant(value))
+                    if not isinstance(value, Cell)
+                    else value
+                )
                 for i, value in enumerate(values)
             ]
             for key, values in input.items()
@@ -195,14 +218,14 @@ class ExcelFrame:
         mapping = CellMapping(self.columns, start_pos=(0, 0))
         with Workbook(path) as wb:
             worksheet = wb.add_worksheet()
-            for i, (key, exprs) in enumerate(self._input.items()):
+            for i, (key, cells) in enumerate(self._input.items()):
                 worksheet.write(i, 0, key)
-                for j, expr in enumerate(exprs):
-                    worksheet.write(i, j + 1, expr.to_formula(mapping))
+                for j, cell in enumerate(cells):
+                    worksheet.write(i, j + 1, cell.to_formula(mapping))
 
     def with_column(self, expr: Expr) -> "ExcelFrame":
         height = self.height
-        self._input[str(expr)] = [expr.cell_expr(self, i) for i in range(height)]
+        self._input[str(expr)] = [expr.create_cell(self, i) for i in range(height)]
         return self
 
     def to_html_val(self, r: int, c: int, mapping: CellMapping) -> str:
@@ -218,7 +241,9 @@ class ExcelFrame:
 
         return ExcelFrame(
             {
-                key: [Constant(value.element, value.last_value) for value in values]
+                key: [
+                    Cell(value.element, Constant(value.last_value)) for value in values
+                ]
                 for key, values in self._input.items()
             }
         )
