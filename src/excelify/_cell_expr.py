@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
+
 if TYPE_CHECKING:
     from excelify._cell import Cell
     from excelify._excelframe import CellMapping
@@ -29,6 +31,12 @@ class CellExpr(ABC):
     def last_value(self) -> Any:
         return self._last_value
 
+    def __truediv__(self, other) -> "CellExpr":
+        return Div(self, other)
+
+    def __neg__(self) -> "CellExpr":
+        return Neg(self)
+
 
 class Empty(CellExpr):
     def __init__(self):
@@ -47,7 +55,7 @@ class Empty(CellExpr):
 
 
 class Constant(CellExpr):
-    def __init__(self, value: int | float):
+    def __init__(self, value: int | float | str):
         super().__init__()
         self.value = value
 
@@ -142,9 +150,12 @@ class Div(CellExpr):
     def compute(self) -> None:
         self._left_cell_expr.compute()
         self._right_cell_expr.compute()
-        self._last_value = (
-            self._left_cell_expr.last_value / self._right_cell_expr.last_value
-        )
+        try:
+            self._last_value = (
+                self._left_cell_expr.last_value / self._right_cell_expr.last_value
+            )
+        except ZeroDivisionError:
+            self._last_value = np.inf
 
 
 class Sub(CellExpr):
@@ -168,3 +179,20 @@ class Sub(CellExpr):
         self._last_value = (
             self._left_cell_expr.last_value - self._right_cell_expr.last_value
         )
+
+
+class Neg(CellExpr):
+    def __init__(self, expr: CellExpr):
+        super().__init__()
+        self._expr = expr
+
+    @property
+    def dependencies(self) -> list["Cell"]:
+        return self._expr.dependencies
+
+    def to_formula(self, mapping: "CellMapping") -> str:
+        return f"(-{self._expr.to_formula(mapping)})"
+
+    def compute(self) -> None:
+        self._expr.compute()
+        self._last_value = -self._expr.last_value

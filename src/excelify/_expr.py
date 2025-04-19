@@ -4,7 +4,17 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from excelify._cell import Cell
-from excelify._cell_expr import Add, CellExpr, CellRef, Constant, Div, Empty, Mult, Sub
+from excelify._cell_expr import (
+    Add,
+    CellExpr,
+    CellRef,
+    Constant,
+    Div,
+    Empty,
+    Mult,
+    Neg,
+    Sub,
+)
 from excelify._element import Element
 
 if TYPE_CHECKING:
@@ -67,6 +77,9 @@ class Expr(ABC):
         assert isinstance(other, Expr)
         return SubCol(self, other)
 
+    def __neg__(self) -> "Expr":
+        return NegCol(self)
+
 
 class ConstantExpr(Expr):
     def __init__(self, value: int | float):
@@ -81,7 +94,7 @@ class ConstantExpr(Expr):
 
 
 class Col(Expr):
-    def __init__(self, col_name: str, offset: int = 0):
+    def __init__(self, col_name: str, *, offset: int = 0):
         super().__init__()
         self._col_name = col_name
         self._offset = offset
@@ -98,10 +111,14 @@ class Col(Expr):
         return f"Ref({self._col_name})"
 
     def prev(self, offset: int) -> "Col":
-        return Col(self._col_name, -offset)
+        return Col(self._col_name, offset=-offset)
 
     def next(self, offset: int) -> "Col":
-        return Col(self._col_name, offset)
+        return Col(self._col_name, offset=offset)
+
+
+def col(col_name: str, offset: int = 0):
+    return Col(col_name, offset=offset)
 
 
 class MultCol(Expr):
@@ -162,3 +179,16 @@ class DivCol(Expr):
 
     def _fallback_repr(self) -> str:
         return f"Div({self._left_expr}, {self._right_expr})"
+
+
+class NegCol(Expr):
+    def __init__(self, expr: Expr):
+        super().__init__()
+        self._expr = expr
+
+    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+        expr = self._expr.get_cell_expr(df, idx)
+        return Neg(expr)
+
+    def _fallback_repr(self) -> str:
+        return f"Neg({self._expr})"

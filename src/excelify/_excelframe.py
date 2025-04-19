@@ -1,14 +1,14 @@
 from pathlib import Path
+from typing import Iterable
 
 from xlsxwriter import Workbook
 
 from excelify._cell import Cell
-from excelify._cell_expr import Constant
+from excelify._column import Column
 from excelify._element import Element
 from excelify._expr import Expr
 from excelify._html import NotebookFormatter
-
-RawInput = dict
+from excelify._types import RawInput
 
 
 class CellMapping:
@@ -60,18 +60,8 @@ def _topological_sort(cells: list[Cell]) -> list[Cell]:
 
 
 class ExcelFrame:
-    def __init__(self, input: RawInput):
-        self._input = {
-            key: [
-                (
-                    Cell(Element(key, i), Constant(value))
-                    if not isinstance(value, Cell)
-                    else value
-                )
-                for i, value in enumerate(values)
-            ]
-            for key, values in input.items()
-        }
+    def __init__(self, input: dict[str, Iterable[RawInput | Cell]]):
+        self._input = {key: Column(key, values) for key, values in input.items()}
 
     def __getitem__(self, idx_or_column: int | str):
         if isinstance(idx_or_column, int):
@@ -112,9 +102,12 @@ class ExcelFrame:
                 for j, cell in enumerate(cells):
                     worksheet.write(i, j + 1, f"={cell.to_formula(mapping)}")
 
-    def with_column(self, expr: Expr) -> "ExcelFrame":
+    def with_columns(self, *exprs: Expr) -> "ExcelFrame":
         height = self.height
-        self._input[str(expr)] = [expr.create_cell(self, i) for i in range(height)]
+        for expr in exprs:
+            self._input[str(expr)] = Column(
+                str(expr), [expr.create_cell(self, i) for i in range(height)]
+            )
         return self
 
     def to_html_val(self, r: int, c: int, mapping: CellMapping) -> str:
@@ -130,9 +123,7 @@ class ExcelFrame:
 
         return ExcelFrame(
             {
-                key: [
-                    Cell(value.element, Constant(value.last_value)) for value in values
-                ]
+                key: [value.last_value for value in values]
                 for key, values in self._input.items()
             }
         )
