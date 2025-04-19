@@ -32,6 +32,10 @@ class CellExpr(ABC):
         return self._last_value
 
     def __truediv__(self, other) -> "CellExpr":
+        from excelify._cell import Cell
+
+        if isinstance(other, Cell):
+            other = other.cell_expr
         return Div(self, other)
 
     def __neg__(self) -> "CellExpr":

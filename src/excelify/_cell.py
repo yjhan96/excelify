@@ -30,3 +30,11 @@ class Cell:
     @property
     def last_value(self) -> Any:
         return self.cell_expr.last_value
+
+    def __truediv__(self, other) -> CellExpr:
+        if isinstance(other, Cell):
+            other = other.cell_expr
+        return self.cell_expr / other
+
+    def __neg__(self) -> CellExpr:
+        return -self.cell_expr
