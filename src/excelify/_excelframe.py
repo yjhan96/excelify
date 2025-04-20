@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Iterable
 
+import openpyxl
 from xlsxwriter import Workbook
 
 from excelify._cell import Cell
@@ -93,7 +94,14 @@ class ExcelFrame:
     def _repr_html_(self):
         return "".join(NotebookFormatter(self).render())
 
-    def write_excel(self, path: Path) -> None:
+    def to_excel(self, path: Path | str, write_values: bool = True) -> None:
+        # Ideally, we'd like to write a function `of_excel` that will read
+        # an excel file and create an ExcelFrame. However, this is slightly
+        # nontrivial as we need to parse the formula and rewire the cells
+        # in Python. Even though this isn't impossible, we defer it for now
+        # and write two excel files, one with formulas and one wih values only.
+
+        path = Path(path) if isinstance(path, str) else path
         mapping = CellMapping(self.columns, start_pos=(0, 0))
         with Workbook(path) as wb:
             worksheet = wb.add_worksheet()
@@ -101,6 +109,13 @@ class ExcelFrame:
                 worksheet.write(i, 0, key)
                 for j, cell in enumerate(cells):
                     worksheet.write(i, j + 1, f"={cell.to_formula(mapping)}")
+
+        if write_values:
+            file_name = path.name
+            value_file_path = path.parent / (
+                file_name.removesuffix(".xlsx") + "_value.xlsx"
+            )
+            self.evaluate().to_excel(value_file_path, write_values=False)
 
     def with_columns(self, *exprs: Expr) -> "ExcelFrame":
         height = self.height
