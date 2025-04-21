@@ -31,6 +31,10 @@ class CellExpr(ABC):
     def last_value(self) -> Any:
         return self._last_value
 
+    @abstractmethod
+    def is_primitive(self) -> bool:
+        raise NotImplementedError
+
     def __truediv__(self, other) -> "CellExpr":
         from excelify._cell import Cell
 
@@ -57,6 +61,9 @@ class Empty(CellExpr):
         # TODO: Revisit this behavior.
         self._last_value = 0
 
+    def is_primitive(self) -> bool:
+        return True
+
 
 class Constant(CellExpr):
     def __init__(self, value: int | float | str):
@@ -73,6 +80,9 @@ class Constant(CellExpr):
     def compute(self) -> None:
         self._last_value = self.value
 
+    def is_primitive(self) -> bool:
+        return True
+
 
 class CellRef(CellExpr):
     def __init__(self, cell_ref: "Cell"):
@@ -88,6 +98,9 @@ class CellRef(CellExpr):
 
     def compute(self) -> None:
         self._last_value = self._cell_ref.last_value
+
+    def is_primitive(self) -> bool:
+        return False
 
 
 class Mult(CellExpr):
@@ -112,6 +125,9 @@ class Mult(CellExpr):
             self._left_cell_expr.last_value * self._right_cell_expr.last_value
         )
 
+    def is_primitive(self) -> bool:
+        return False
+
 
 class Add(CellExpr):
     def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
@@ -134,6 +150,9 @@ class Add(CellExpr):
         self._last_value = (
             self._left_cell_expr.last_value + self._right_cell_expr.last_value
         )
+
+    def is_primitive(self) -> bool:
+        return False
 
 
 class Div(CellExpr):
@@ -161,6 +180,9 @@ class Div(CellExpr):
         except ZeroDivisionError:
             self._last_value = np.inf
 
+    def is_primitive(self) -> bool:
+        return False
+
 
 class Sub(CellExpr):
     def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
@@ -184,6 +206,9 @@ class Sub(CellExpr):
             self._left_cell_expr.last_value - self._right_cell_expr.last_value
         )
 
+    def is_primitive(self) -> bool:
+        return False
+
 
 class Neg(CellExpr):
     def __init__(self, expr: CellExpr):
@@ -200,3 +225,6 @@ class Neg(CellExpr):
     def compute(self) -> None:
         self._expr.compute()
         self._last_value = -self._expr.last_value
+
+    def is_primitive(self) -> bool:
+        return False

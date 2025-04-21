@@ -108,7 +108,10 @@ class ExcelFrame:
             for i, (key, cells) in enumerate(self._input.items()):
                 worksheet.write(i, 0, key)
                 for j, cell in enumerate(cells):
-                    worksheet.write(i, j + 1, f"={cell.to_formula(mapping)}")
+                    formula = cell.to_formula(mapping)
+                    if not cell.cell_expr.is_primitive():
+                        formula = f"={formula}"
+                    worksheet.write(i, j + 1, formula)
 
         if write_values:
             file_name = path.name
