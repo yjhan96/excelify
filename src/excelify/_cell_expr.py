@@ -35,15 +35,17 @@ class CellExpr(ABC):
     def is_primitive(self) -> bool:
         raise NotImplementedError
 
-    def __truediv__(self, other) -> "CellExpr":
-        from excelify._cell import Cell
-
-        if isinstance(other, Cell):
-            other = other.cell_expr
+    def __truediv__(self, other: "CellExpr") -> "CellExpr":
         return Div(self, other)
 
     def __neg__(self) -> "CellExpr":
         return Neg(self)
+
+    def __add__(self, other: "CellExpr") -> "CellExpr":
+        return Add(self, other)
+
+    def __mul__(self, other: "CellExpr") -> "CellExpr":
+        return Mult(self, other)
 
 
 class Empty(CellExpr):
