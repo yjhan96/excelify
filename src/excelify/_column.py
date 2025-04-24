@@ -1,3 +1,4 @@
+import uuid
 from typing import Iterable
 
 from excelify._cell import Cell
@@ -7,10 +8,11 @@ from excelify._types import RawInput
 
 
 class Column:
-    def __init__(self, key: str, values: Iterable[Cell | RawInput]):
+    def __init__(self, id: uuid.UUID, key: str, values: Iterable[Cell | RawInput]):
+        self._id = id
         self._values = [
             (
-                Cell(Element(key, i), Constant(value))
+                Cell(Element(id, key, i), Constant(value))
                 if not isinstance(value, Cell)
                 else value
             )
@@ -31,4 +33,4 @@ class Column:
         if isinstance(value, RawInput):
             value = Constant(value)
 
-        self._values[idx] = Cell(Element(self._key, idx), value)
+        self._values[idx] = Cell(Element(self._id, self._key, idx), value)

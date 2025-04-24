@@ -1,3 +1,4 @@
+import uuid
 from pathlib import Path
 from typing import Iterable
 
@@ -35,7 +36,7 @@ class CellMapping:
 
     def __getitem__(self, element: Element) -> str:
         start_row, start_col = self._start_pos
-        col_name, idx = element
+        _, col_name, idx = element
         return f"{self._int_to_alpha(idx + start_col + 1)}{self._columns[col_name] + start_row + 1}"
 
 
@@ -53,16 +54,18 @@ def _topological_sort(cells: list[Cell]) -> list[Cell]:
 
     for cell in cells:
         element = cell.element
-        if element in visited:
-            continue
-        _sort_deps(cell, result, visited)
+        if element not in visited:
+            _sort_deps(cell, result, visited)
 
     return result
 
 
 class ExcelFrame:
     def __init__(self, input: dict[str, Iterable[RawInput | Cell]]):
-        self._input = {key: Column(key, values) for key, values in input.items()}
+        self._id = uuid.uuid4()
+        self._input = {
+            key: Column(self._id, key, values) for key, values in input.items()
+        }
 
     def __getitem__(self, idx_or_column: int | str):
         if isinstance(idx_or_column, int):
@@ -90,6 +93,10 @@ class ExcelFrame:
     @property
     def columns(self) -> list[str]:
         return list(self._input.keys())
+
+    @property
+    def id(self) -> uuid.UUID:
+        return self._id
 
     def _repr_html_(self):
         return "".join(NotebookFormatter(self).render())
@@ -124,7 +131,7 @@ class ExcelFrame:
         height = self.height
         for expr in exprs:
             self._input[str(expr)] = Column(
-                str(expr), [expr.create_cell(self, i) for i in range(height)]
+                self._id, str(expr), [expr.create_cell(self, i) for i in range(height)]
             )
         return self
 
@@ -133,7 +140,7 @@ class ExcelFrame:
         return cell_expr.to_formula(mapping)
 
     def evaluate(self) -> "ExcelFrame":
-        cells = [expr for exprs in self._input.values() for expr in exprs]
+        cells = [cell for cells in self._input.values() for cell in cells]
 
         sorted_cells = _topological_sort(cells)
         for cell in sorted_cells:
