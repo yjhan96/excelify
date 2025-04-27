@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Iterable
 
 import openpyxl
-from xlsxwriter import Workbook
 
 from excelify._cell import Cell
 from excelify._column import Column
@@ -37,7 +36,7 @@ class CellMapping:
     def __getitem__(self, element: Element) -> str:
         start_row, start_col = self._start_pos
         _, col_name, idx = element
-        return f"{self._int_to_alpha(idx + start_col + 1)}{self._columns[col_name] + start_row + 1}"
+        return f"{self._int_to_alpha(idx + start_col)}{self._columns[col_name] + start_row}"
 
 
 def _topological_sort(cells: list[Cell]) -> list[Cell]:
@@ -101,7 +100,13 @@ class ExcelFrame:
     def _repr_html_(self):
         return "".join(NotebookFormatter(self).render())
 
-    def to_excel(self, path: Path | str, write_values: bool = True) -> None:
+    def to_excel(
+        self,
+        path: Path | str,
+        *,
+        start_pos: tuple[int, int] = (1, 1),
+        write_values: bool = True,
+    ) -> None:
         # Ideally, we'd like to write a function `of_excel` that will read
         # an excel file and create an ExcelFrame. However, this is slightly
         # nontrivial as we need to parse the formula and rewire the cells
@@ -109,23 +114,35 @@ class ExcelFrame:
         # and write two excel files, one with formulas and one wih values only.
 
         path = Path(path) if isinstance(path, str) else path
-        mapping = CellMapping(self.columns, start_pos=(0, 0))
-        with Workbook(path) as wb:
-            worksheet = wb.add_worksheet()
-            for i, (key, cells) in enumerate(self._input.items()):
-                worksheet.write(i, 0, key)
-                for j, cell in enumerate(cells):
-                    formula = cell.to_formula(mapping)
-                    if not cell.cell_expr.is_primitive():
-                        formula = f"={formula}"
-                    worksheet.write(i, j + 1, formula)
+        mapping = CellMapping(self.columns, start_pos=start_pos)
+        if path.exists():
+            workbook = openpyxl.load_workbook(path)
+        else:
+            workbook = openpyxl.Workbook()
+        worksheet = workbook.active
+        assert worksheet is not None
+        start_row, start_col = start_pos
+        for i, (key, cells) in enumerate(self._input.items()):
+            worksheet.cell(row=start_row + i, column=start_col).value = key
+            start_offset = 1
+            for j, cell in enumerate(cells):
+                formula = cell.to_formula(mapping)
+                if not cell.cell_expr.is_primitive():
+                    formula = f"={formula}"
+                worksheet.cell(
+                    row=start_row + i, column=start_col + j + start_offset
+                ).value = formula
+
+        workbook.save(path)
 
         if write_values:
             file_name = path.name
             value_file_path = path.parent / (
                 file_name.removesuffix(".xlsx") + "_value.xlsx"
             )
-            self.evaluate().to_excel(value_file_path, write_values=False)
+            self.evaluate().to_excel(
+                value_file_path, start_pos=start_pos, write_values=False
+            )
 
     def with_columns(self, *exprs: Expr) -> "ExcelFrame":
         height = self.height
