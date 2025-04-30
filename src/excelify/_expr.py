@@ -19,6 +19,7 @@ from excelify._element import Element
 
 if TYPE_CHECKING:
     from excelify._excelframe import ExcelFrame
+    from excelify._cell import Cell
 
 
 class Expr(ABC):
@@ -91,6 +92,18 @@ class ConstantExpr(Expr):
 
     def _fallback_repr(self) -> str:
         return str(self._value)
+
+
+class SingleCellExpr(Expr):
+    def __init__(self, cell: Cell):
+        super().__init__()
+        self._cell = cell
+
+    def get_cell_expr(self, df, idx) -> CellExpr:
+        return self._cell.cell_expr
+
+    def _fallback_repr(self) -> str:
+        return f"{self._cell} Cell Expr"
 
 
 class Col(Expr):
