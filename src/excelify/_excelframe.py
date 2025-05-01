@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence, overload
@@ -150,7 +152,7 @@ class ExcelFrame:
                 value_file_path, start_pos=start_pos, write_values=False
             )
 
-    def with_columns(self, *exprs: Expr) -> "ExcelFrame":
+    def with_columns(self, *exprs: Expr) -> ExcelFrame:
         height = self.height
         for expr in exprs:
             self._input[str(expr)] = Column(
@@ -162,7 +164,7 @@ class ExcelFrame:
         cell_expr = self._input[self.columns[c]][r]
         return cell_expr.to_formula(mapping)
 
-    def evaluate(self) -> "ExcelFrame":
+    def evaluate(self) -> ExcelFrame:
         cells = [cell for cells in self._input.values() for cell in cells]
 
         sorted_cells = _topological_sort(cells)
@@ -182,7 +184,7 @@ class ExcelFrame:
         include_header: bool = False,
         header_name: str = "column",
         column_names: Iterable[str] | None = None,
-    ) -> "ExcelFrame":
+    ) -> ExcelFrame:
         columns = []
         if include_header:
             columns.append((header_name, self.columns))

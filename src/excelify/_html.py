@@ -100,9 +100,13 @@ class HTMLFormatter:
                             if r is None or c is None:
                                 self.elements.append("&hellip;")
                             else:
-                                self.elements.append(
-                                    html.escape(self.df.to_html_val(r, c, mapping))
-                                )
+                                value = self.df.to_html_val(r, c, mapping)
+                                try:
+                                    # TODO: Make the rounding configurable.
+                                    value = str(round(float(value), 2))
+                                except ValueError:
+                                    pass
+                                self.elements.append(html.escape(value))
 
     def render(self) -> list[str]:
         width, height = self.df.shape
