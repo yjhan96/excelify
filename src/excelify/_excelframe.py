@@ -1,6 +1,6 @@
 import uuid
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping, Sequence, overload
 
 import openpyxl
 
@@ -60,13 +60,19 @@ def _topological_sort(cells: list[Cell]) -> list[Cell]:
 
 
 class ExcelFrame:
-    def __init__(self, input: dict[str, Iterable[RawInput | Cell]]):
+    def __init__(self, input: Mapping[str, Iterable[RawInput | Cell]]):
         self._id = uuid.uuid4()
         self._input = {
             key: Column(self._id, key, values) for key, values in input.items()
         }
 
-    def __getitem__(self, idx_or_column: int | str):
+    @overload
+    def __getitem__(self, idx_or_column: int) -> Iterable[Cell]: ...
+
+    @overload
+    def __getitem__(self, idx_or_column: str) -> Column: ...
+
+    def __getitem__(self, idx_or_column: int | str) -> Iterable[Cell] | Column:
         if isinstance(idx_or_column, int):
             # TODO: Come back to this.
             idx = idx_or_column
@@ -169,3 +175,27 @@ class ExcelFrame:
                 for key, values in self._input.items()
             }
         )
+
+    def transpose(
+        self,
+        *,
+        include_header: bool = False,
+        header_name: str = "column",
+        column_names: Iterable[str] | None = None,
+    ) -> "ExcelFrame":
+        columns = []
+        if include_header:
+            columns.append((header_name, self.columns))
+
+        if column_names is None:
+            column_names = []
+
+        iterator = iter(column_names)
+        for i in range(self.height):
+            col_name: str
+            try:
+                col_name = next(iterator)
+            except StopIteration:
+                col_name = f"column_{i}"
+            columns.append((col_name, self[i]))
+        return ExcelFrame(dict(columns))
