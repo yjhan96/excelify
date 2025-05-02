@@ -10,7 +10,7 @@ from excelify._cell_expr import (
     CellRef,
     Constant,
     Div,
-    Empty,
+    Invalid,
     Mult,
     Neg,
     Sub,
@@ -18,8 +18,8 @@ from excelify._cell_expr import (
 from excelify._element import Element
 
 if TYPE_CHECKING:
-    from excelify._excelframe import ExcelFrame
     from excelify._cell import Cell
+    from excelify._excelframe import ExcelFrame
 
 
 class Expr(ABC):
@@ -116,7 +116,7 @@ class Col(Expr):
         cells = df[self._col_name]
         adjusted_idx = idx + self._offset
         if adjusted_idx < 0 or adjusted_idx >= len(cells):
-            return Empty()
+            return Invalid()
         else:
             return CellRef(df[self._col_name][adjusted_idx])
 
