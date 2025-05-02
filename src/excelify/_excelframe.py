@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence, overload
+from typing import Iterable, Mapping, overload
 
 import openpyxl
 
@@ -67,6 +67,7 @@ class ExcelFrame:
         self._input = {
             key: Column(self._id, key, values) for key, values in input.items()
         }
+        self._ordered_columns = list(self._input.keys())
 
     @overload
     def __getitem__(self, idx_or_column: int) -> Iterable[Cell]: ...
@@ -99,7 +100,7 @@ class ExcelFrame:
 
     @property
     def columns(self) -> list[str]:
-        return list(self._input.keys())
+        return self._ordered_columns
 
     @property
     def id(self) -> uuid.UUID:
@@ -130,8 +131,9 @@ class ExcelFrame:
         worksheet = workbook.active
         assert worksheet is not None
         start_row, start_col = start_pos
-        for i, (key, cells) in enumerate(self._input.items()):
-            worksheet.cell(row=start_row + i, column=start_col).value = key
+        for i, col in enumerate(self._ordered_columns):
+            cells = self._input[col]
+            worksheet.cell(row=start_row + i, column=start_col).value = col
             start_offset = 1
             for j, cell in enumerate(cells):
                 formula = cell.to_formula(mapping)
@@ -155,13 +157,16 @@ class ExcelFrame:
     def with_columns(self, *exprs: Expr) -> ExcelFrame:
         height = self.height
         for expr in exprs:
-            self._input[str(expr)] = Column(
-                self._id, str(expr), [expr.create_cell(self, i) for i in range(height)]
+            col_name = str(expr)
+            if col_name not in self._input:
+                self._ordered_columns.append(col_name)
+            self._input[col_name] = Column(
+                self._id, col_name, [expr.create_cell(self, i) for i in range(height)]
             )
         return self
 
     def to_html_val(self, r: int, c: int, mapping: CellMapping) -> str:
-        cell_expr = self._input[self.columns[c]][r]
+        cell_expr = self._input[self._ordered_columns[c]][r]
         return cell_expr.to_formula(mapping)
 
     def evaluate(self) -> ExcelFrame:
@@ -201,3 +206,9 @@ class ExcelFrame:
                 col_name = f"column_{i}"
             columns.append((col_name, self[i]))
         return ExcelFrame(dict(columns))
+
+    def select(self, columns: list[str]) -> ExcelFrame:
+        self._ordered_columns = columns
+        # Update input by only taking the data specified in the column.
+        self._input = {col: self._input[col] for col in self._ordered_columns}
+        return self

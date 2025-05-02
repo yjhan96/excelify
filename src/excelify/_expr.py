@@ -26,11 +26,11 @@ class Expr(ABC):
     def __init__(self):
         self._name = None
 
-    def create_cell(self, df: "ExcelFrame", idx: int) -> Cell:
+    def create_cell(self, df: ExcelFrame, idx: int) -> Cell:
         return Cell(Element(df.id, str(self), idx), self.get_cell_expr(df, idx))
 
     @abstractmethod
-    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
         raise NotImplementedError
 
     @abstractmethod
@@ -87,7 +87,7 @@ class ConstantExpr(Expr):
         super().__init__()
         self._value = value
 
-    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
         return Constant(self._value)
 
     def _fallback_repr(self) -> str:
@@ -107,18 +107,22 @@ class SingleCellExpr(Expr):
 
 
 class Col(Expr):
-    def __init__(self, col_name: str, *, offset: int = 0):
+    def __init__(
+        self, col_name: str, *, from_: ExcelFrame | None = None, offset: int = 0
+    ):
         super().__init__()
         self._col_name = col_name
         self._offset = offset
+        self.from_ = from_
 
-    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
-        cells = df[self._col_name]
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        from_df = self.from_ if self.from_ is not None else df
+        cells = from_df[self._col_name]
         adjusted_idx = idx + self._offset
         if adjusted_idx < 0 or adjusted_idx >= len(cells):
             return Invalid()
         else:
-            return CellRef(df[self._col_name][adjusted_idx])
+            return CellRef(cells[adjusted_idx])
 
     def _fallback_repr(self) -> str:
         return f"Ref({self._col_name})"
@@ -130,8 +134,8 @@ class Col(Expr):
         return Col(self._col_name, offset=offset)
 
 
-def col(col_name: str, offset: int = 0):
-    return Col(col_name, offset=offset)
+def col(col_name: str, *, from_: ExcelFrame | None = None, offset: int = 0):
+    return Col(col_name, from_=from_, offset=offset)
 
 
 class MultCol(Expr):
@@ -140,7 +144,7 @@ class MultCol(Expr):
         self._left_expr = left_expr
         self._right_expr = right_expr
 
-    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
         left_cell_expr = self._left_expr.get_cell_expr(df, idx)
         right_cell_expr = self._right_expr.get_cell_expr(df, idx)
         return Mult(left_cell_expr, right_cell_expr)
@@ -155,7 +159,7 @@ class AddCol(Expr):
         self._left_expr = left_expr
         self._right_expr = right_expr
 
-    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
         left_cell_expr = self._left_expr.get_cell_expr(df, idx)
         right_cell_expr = self._right_expr.get_cell_expr(df, idx)
         return Add(left_cell_expr, right_cell_expr)
@@ -170,7 +174,7 @@ class SubCol(Expr):
         self._left_expr = left_expr
         self._right_expr = right_expr
 
-    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
         left_cell_expr = self._left_expr.get_cell_expr(df, idx)
         right_cell_expr = self._right_expr.get_cell_expr(df, idx)
         return Sub(left_cell_expr, right_cell_expr)
@@ -185,7 +189,7 @@ class DivCol(Expr):
         self._left_expr = left_expr
         self._right_expr = right_expr
 
-    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
         left_cell_expr = self._left_expr.get_cell_expr(df, idx)
         right_cell_expr = self._right_expr.get_cell_expr(df, idx)
         return Div(left_cell_expr, right_cell_expr)
@@ -199,7 +203,7 @@ class NegCol(Expr):
         super().__init__()
         self._expr = expr
 
-    def get_cell_expr(self, df: "ExcelFrame", idx: int) -> CellExpr:
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
         expr = self._expr.get_cell_expr(df, idx)
         return Neg(expr)
 
