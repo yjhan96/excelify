@@ -96,17 +96,24 @@ class HTMLFormatter:
             for r in self.row_idx:
                 with Tag(self.elements, "tr"):
                     for c in self.col_idx:
-                        with Tag(self.elements, "td"):
-                            if r is None or c is None:
-                                self.elements.append("&hellip;")
-                            else:
-                                value = self.df.to_html_val(r, c, mapping)
-                                try:
-                                    # TODO: Make the rounding configurable.
-                                    value = str(round(float(value), 2))
-                                except ValueError:
-                                    pass
-                                self.elements.append(html.escape(value))
+                        value: str
+                        attrs: dict
+                        if r is None or c is None:
+                            value = "&hellip;"
+                            attrs = {}
+                        else:
+                            col_name = self.df.columns[c]
+                            cell = self.df[col_name][r]
+                            value = cell.to_formula(mapping)
+                            attrs = cell.attributes
+                            try:
+                                # TODO: Make the rounding configurable.
+                                value = str(round(float(value), 2))
+                            except ValueError:
+                                pass
+                            value = html.escape(value)
+                        with Tag(self.elements, "td", attrs):
+                            self.elements.append(value)
 
     def render(self) -> list[str]:
         width, height = self.df.shape

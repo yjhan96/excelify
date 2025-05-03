@@ -43,42 +43,42 @@ class Expr(ABC):
         else:
             return self._fallback_repr()
 
-    def alias(self, name: str) -> "Expr":
+    def alias(self, name: str) -> Expr:
         self._name = name
         return self
 
-    def __mul__(self, other) -> "Expr":
+    def __mul__(self, other) -> Expr:
         if isinstance(other, int) or isinstance(other, float):
             other = ConstantExpr(other)
 
         assert isinstance(other, Expr)
         return MultCol(self, other)
 
-    def __add__(self, other) -> "Expr":
+    def __add__(self, other) -> Expr:
         if isinstance(other, int) or isinstance(other, float):
             other = ConstantExpr(other)
 
         assert isinstance(other, Expr)
         return AddCol(self, other)
 
-    def __radd__(self, other) -> "Expr":
+    def __radd__(self, other) -> Expr:
         return self + other
 
-    def __truediv__(self, other) -> "Expr":
+    def __truediv__(self, other) -> Expr:
         if isinstance(other, int) or isinstance(other, float):
             other = ConstantExpr(other)
 
         assert isinstance(other, Expr)
         return DivCol(self, other)
 
-    def __sub__(self, other) -> "Expr":
+    def __sub__(self, other) -> Expr:
         if isinstance(other, int) or isinstance(other, float):
             other = ConstantExpr(other)
 
         assert isinstance(other, Expr)
         return SubCol(self, other)
 
-    def __neg__(self) -> "Expr":
+    def __neg__(self) -> Expr:
         return NegCol(self)
 
 

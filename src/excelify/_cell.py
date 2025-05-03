@@ -13,6 +13,7 @@ class Cell:
     def __init__(self, element: Element, cell_expr: CellExpr):
         self._element = element
         self.cell_expr = cell_expr
+        self._attributes = {}
 
     def to_formula(self, mapping: "CellMapping") -> str:
         return self.cell_expr.to_formula(mapping)
@@ -61,3 +62,10 @@ class Cell:
     def __mul__(self, other: Cell | RawInput | CellExpr) -> CellExpr:
         other_resolved = Cell._resolve_to_cell_expr(other)
         return self.cell_expr * other_resolved
+
+    def set_attributes(self, attrs: dict) -> None:
+        self._attributes = attrs
+
+    @property
+    def attributes(self) -> dict:
+        return self._attributes

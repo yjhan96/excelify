@@ -165,10 +165,6 @@ class ExcelFrame:
             )
         return self
 
-    def to_html_val(self, r: int, c: int, mapping: CellMapping) -> str:
-        cell_expr = self._input[self._ordered_columns[c]][r]
-        return cell_expr.to_formula(mapping)
-
     def evaluate(self) -> ExcelFrame:
         cells = [cell for cells in self._input.values() for cell in cells]
 

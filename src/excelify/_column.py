@@ -34,3 +34,7 @@ class Column:
             value = Constant(value)
 
         self._values[idx] = Cell(Element(self._id, self._key, idx), value)
+
+    def set_attributes(self, attrs: dict) -> None:
+        for cell in self._values:
+            cell.set_attributes(attrs)
