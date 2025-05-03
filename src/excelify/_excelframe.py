@@ -7,6 +7,7 @@ from typing import Iterable, Mapping, overload
 import openpyxl
 
 from excelify._cell import Cell
+from excelify._cell_expr import Constant
 from excelify._column import Column
 from excelify._element import Element
 from excelify._expr import Expr
@@ -62,12 +63,24 @@ def _topological_sort(cells: list[Cell]) -> list[Cell]:
 
 
 class ExcelFrame:
-    def __init__(self, input: Mapping[str, Iterable[RawInput | Cell]]):
+    # TODO: Ideally, I'd like potentially multiple constructors implemented
+    # separately, but there's no clean way to do this in Python. If I re-implement
+    # the backend in Rust, that should be doable.
+    def __init__(
+        self,
+        input: Mapping[str, Iterable[RawInput | Cell]],
+        *,
+        ordered_columns: list[str] | None = None,
+    ):
         self._id = uuid.uuid4()
         self._input = {
             key: Column(self._id, key, values) for key, values in input.items()
         }
-        self._ordered_columns = list(self._input.keys())
+        self._ordered_columns: list[str]
+        if ordered_columns is not None:
+            self._ordered_columns = ordered_columns
+        else:
+            self._ordered_columns = list(self._input.keys())
 
     @overload
     def __getitem__(self, idx_or_column: int) -> Iterable[Cell]: ...
@@ -154,16 +167,25 @@ class ExcelFrame:
                 value_file_path, start_pos=start_pos, write_values=False
             )
 
+    def _shallow_copy(self) -> ExcelFrame:
+        input = {
+            col_name: [cell for cell in column]
+            for col_name, column in self._input.items()
+        }
+        ordered_columns = self._ordered_columns
+        return ExcelFrame(input, ordered_columns=ordered_columns)
+
     def with_columns(self, *exprs: Expr) -> ExcelFrame:
-        height = self.height
+        copy = self._shallow_copy()
+        height = copy.height
         for expr in exprs:
             col_name = str(expr)
-            if col_name not in self._input:
+            if col_name not in copy._input:
                 self._ordered_columns.append(col_name)
-            self._input[col_name] = Column(
-                self._id, col_name, [expr.create_cell(self, i) for i in range(height)]
+            copy._input[col_name] = Column(
+                copy._id, col_name, [expr.create_cell(copy, i) for i in range(height)]
             )
-        return self
+        return copy
 
     def evaluate(self) -> ExcelFrame:
         cells = [cell for cells in self._input.values() for cell in cells]
@@ -172,10 +194,19 @@ class ExcelFrame:
         for cell in sorted_cells:
             cell.compute()
 
+        uid = uuid.uuid4()
+
         return ExcelFrame(
             {
-                key: [value.last_value for value in values]
-                for key, values in self._input.items()
+                col_name: [
+                    Cell(
+                        Element(uid, col_name, idx),
+                        Constant(value.last_value),
+                        attributes=value.attributes,
+                    )
+                    for idx, value in enumerate(values)
+                ]
+                for col_name, values in self._input.items()
             }
         )
 
@@ -204,7 +235,8 @@ class ExcelFrame:
         return ExcelFrame(dict(columns))
 
     def select(self, columns: list[str]) -> ExcelFrame:
-        self._ordered_columns = columns
+        copy = self._shallow_copy()
+        copy._ordered_columns = columns
         # Update input by only taking the data specified in the column.
-        self._input = {col: self._input[col] for col in self._ordered_columns}
-        return self
+        copy._input = {col: copy._input[col] for col in copy._ordered_columns}
+        return copy

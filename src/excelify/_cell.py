@@ -10,12 +10,17 @@ if TYPE_CHECKING:
 
 
 class Cell:
-    def __init__(self, element: Element, cell_expr: CellExpr):
+    def __init__(
+        self, element: Element, cell_expr: CellExpr, *, attributes: dict | None = None
+    ):
         self._element = element
         self.cell_expr = cell_expr
-        self._attributes = {}
+        if attributes is None:
+            self._attributes = {}
+        else:
+            self._attributes = attributes
 
-    def to_formula(self, mapping: "CellMapping") -> str:
+    def to_formula(self, mapping: CellMapping) -> str:
         return self.cell_expr.to_formula(mapping)
 
     @property
@@ -23,11 +28,14 @@ class Cell:
         return self._element
 
     @property
-    def dependencies(self) -> list["Cell"]:
+    def dependencies(self) -> list[Cell]:
         return self.cell_expr.dependencies
 
     def compute(self) -> None:
         return self.cell_expr.compute()
+
+    def set_expr(self, cell_expr) -> None:
+        self.cell_expr = cell_expr
 
     @property
     def last_value(self) -> Any:

@@ -29,12 +29,23 @@ class Column:
     def __iter__(self):
         return iter(self._values)
 
+    def _maybe_copy_on_write(self, idx):
+        if self._values[idx].element != Element(self._id, self._key, idx):
+            prev_cell = self._values[idx]
+            self._values[idx] = Cell(
+                Element(self._id, self._key, idx),
+                prev_cell.cell_expr,
+                attributes=prev_cell.attributes,
+            )
+
     def __setitem__(self, idx: int, value: RawInput | CellExpr):
         if isinstance(value, RawInput):
             value = Constant(value)
 
-        self._values[idx] = Cell(Element(self._id, self._key, idx), value)
+        self._maybe_copy_on_write(idx)
+        self._values[idx].set_expr(value)
 
     def set_attributes(self, attrs: dict) -> None:
-        for cell in self._values:
-            cell.set_attributes(attrs)
+        for idx in range(len(self._values)):
+            self._maybe_copy_on_write(idx)
+            self._values[idx].set_attributes(attrs)
