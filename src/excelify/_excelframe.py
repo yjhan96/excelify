@@ -167,16 +167,11 @@ class ExcelFrame:
                 value_file_path, start_pos=start_pos, write_values=False
             )
 
-    def _shallow_copy(self) -> ExcelFrame:
-        input = {
-            col_name: [cell for cell in column]
-            for col_name, column in self._input.items()
-        }
-        ordered_columns = self._ordered_columns
-        return ExcelFrame(input, ordered_columns=ordered_columns)
+    def _copy(self) -> ExcelFrame:
+        return ExcelFrame(self._input, ordered_columns=self._ordered_columns)
 
     def with_columns(self, *exprs: Expr) -> ExcelFrame:
-        copy = self._shallow_copy()
+        copy = self._copy()
         height = copy.height
         for expr in exprs:
             col_name = str(expr)
@@ -199,6 +194,9 @@ class ExcelFrame:
         return ExcelFrame(
             {
                 col_name: [
+                    # TODO: We annoyingly create a dummy cell because
+                    # we want to pass attributes. This cell gets recreated
+                    # during the constructor, so it's a bit wasteful.
                     Cell(
                         Element(uid, col_name, idx),
                         Constant(value.last_value),
@@ -235,7 +233,7 @@ class ExcelFrame:
         return ExcelFrame(dict(columns))
 
     def select(self, columns: list[str]) -> ExcelFrame:
-        copy = self._shallow_copy()
+        copy = self._copy()
         copy._ordered_columns = columns
         # Update input by only taking the data specified in the column.
         copy._input = {col: copy._input[col] for col in copy._ordered_columns}
