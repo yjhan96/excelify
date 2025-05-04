@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from excelify._cell import Cell
 from excelify._cell_expr import (
@@ -209,3 +209,15 @@ class NegCol(Expr):
 
     def _fallback_repr(self) -> str:
         return f"Neg({self._expr})"
+
+
+class Map(Expr):
+    def __init__(self, fn: Callable[[int], CellExpr]):
+        super().__init__()
+        self._fn = fn
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        return self._fn(idx)
+
+    def _fallback_repr(self) -> str:
+        raise ValueError(f"Please provide a name of the map column!: {self._fn=}")

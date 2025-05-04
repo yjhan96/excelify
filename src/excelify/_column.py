@@ -8,14 +8,22 @@ from excelify._types import RawInput
 
 
 class Column:
-    def __init__(self, id: uuid.UUID, key: str, values: Iterable[Cell | RawInput]):
+    def __init__(
+        self, id: uuid.UUID, key: str, values: Iterable[Cell | RawInput | CellExpr]
+    ):
         self._id = id
         self._values = [
             (
                 Cell(Element(id, key, i), Constant(value))
-                if not isinstance(value, Cell)
-                else Cell(
-                    Element(id, key, i), value.cell_expr, attributes=value.attributes
+                if isinstance(value, RawInput)
+                else (
+                    Cell(
+                        Element(id, key, i),
+                        value.cell_expr,
+                        attributes=value.attributes,
+                    )
+                    if isinstance(value, Cell)
+                    else Cell(Element(id, key, i), value)
                 )
             )
             for i, value in enumerate(values)

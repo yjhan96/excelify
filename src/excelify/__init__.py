@@ -10,6 +10,7 @@ from excelify._expr import (
     SubCol,
     col,
     SingleCellExpr,
+    Map,
 )
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "Mult",
     "Sub",
     "SingleCellExpr",
+    "Map",
 ]

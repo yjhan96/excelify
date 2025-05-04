@@ -7,7 +7,7 @@ from typing import Iterable, Mapping, overload
 import openpyxl
 
 from excelify._cell import Cell
-from excelify._cell_expr import Constant
+from excelify._cell_expr import CellExpr, Constant, Empty
 from excelify._column import Column
 from excelify._element import Element
 from excelify._expr import Expr
@@ -68,7 +68,7 @@ class ExcelFrame:
     # the backend in Rust, that should be doable.
     def __init__(
         self,
-        input: Mapping[str, Iterable[RawInput | Cell]],
+        input: Mapping[str, Iterable[RawInput | Cell | CellExpr]],
         *,
         ordered_columns: list[str] | None = None,
     ):
@@ -81,6 +81,11 @@ class ExcelFrame:
             self._ordered_columns = ordered_columns
         else:
             self._ordered_columns = list(self._input.keys())
+
+    @classmethod
+    def empty(cls, *, columns: list[str], width: int) -> ExcelFrame:
+        input = {col_name: [Empty() for _ in range(width)] for col_name in columns}
+        return ExcelFrame(input, ordered_columns=columns)
 
     @overload
     def __getitem__(self, idx_or_column: int) -> Iterable[Cell]: ...
