@@ -182,9 +182,15 @@ class ExcelFrame:
             col_name = str(expr)
             if col_name not in copy._input:
                 self._ordered_columns.append(col_name)
-            copy._input[col_name] = Column(
-                copy._id, col_name, [expr.create_cell(copy, i) for i in range(height)]
-            )
+            if col_name in copy._input.keys():
+                for i, cell in enumerate(copy._input[col_name]):
+                    cell.set_expr(expr.get_cell_expr(copy, i))
+            else:
+                copy._input[col_name] = Column(
+                    copy._id,
+                    col_name,
+                    [expr.get_cell_expr(copy, i) for i in range(height)],
+                )
         return copy
 
     def evaluate(self) -> ExcelFrame:

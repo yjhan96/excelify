@@ -26,9 +26,6 @@ class Expr(ABC):
     def __init__(self):
         self._name = None
 
-    def create_cell(self, df: ExcelFrame, idx: int) -> Cell:
-        return Cell(Element(df.id, str(self), idx), self.get_cell_expr(df, idx))
-
     @abstractmethod
     def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
         raise NotImplementedError
