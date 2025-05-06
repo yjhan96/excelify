@@ -73,10 +73,14 @@ class ExcelFrame:
         ordered_columns: list[str] | None = None,
     ):
         self._id = uuid.uuid4()
+        prev_cells = self._get_cell_elements(input)
         self._input: dict[str, Column] = {
             key: Column(self._id, key, values) for key, values in input.items()
         }
-        prev_refs = self._get_refs(input)
+        prev_refs = {
+            element: self._input[col_name][i]
+            for (col_name, i), element in prev_cells.items()
+        }
         self._update_self_refs(prev_refs)
         self._ordered_columns: list[str]
         if ordered_columns is not None:
@@ -84,14 +88,15 @@ class ExcelFrame:
         else:
             self._ordered_columns = list(self._input.keys())
 
-    def _get_refs(
-        self, input: Mapping[str, Iterable[RawInput | Cell | CellExpr]]
-    ) -> Mapping[Element, Cell]:
+    def _get_cell_elements(
+        self,
+        input: Mapping[str, Iterable[RawInput | Cell | CellExpr]],
+    ) -> Mapping[tuple[str, int], Element]:
         res = {}
         for col_name, values in input.items():
             for i, value in enumerate(values):
                 if isinstance(value, Cell):
-                    res[value.element] = self._input[col_name][i]
+                    res[(col_name, i)] = value.element
         return res
 
     def _update_self_refs(self, prev_refs: Mapping[Element, Cell]) -> None:
@@ -266,3 +271,15 @@ class ExcelFrame:
         # Update input by only taking the data specified in the column.
         copy._input = {col: copy._input[col] for col in copy._ordered_columns}
         return copy
+
+
+def concat(dfs: Iterable[ExcelFrame]) -> ExcelFrame:
+    input = {}
+    for i, df in enumerate(dfs):
+        if i == 0:
+            input = df._input
+        else:
+            for col in input:
+                input[col].extend(df[col])
+
+    return ExcelFrame(input)

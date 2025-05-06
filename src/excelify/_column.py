@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from typing import Iterable
 
@@ -47,3 +49,6 @@ class Column:
     def set_attributes(self, attrs: dict) -> None:
         for cell in self._values:
             cell.set_attributes(attrs)
+
+    def extend(self, other: Column) -> None:
+        self._values.extend(other._values)
