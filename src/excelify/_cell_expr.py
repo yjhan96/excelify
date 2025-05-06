@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Mapping
 
 import numpy as np
+
+from excelify._element import Element
 
 if TYPE_CHECKING:
     from excelify._cell import Cell
@@ -50,6 +52,10 @@ class CellExpr(ABC):
 
     def __mul__(self, other: CellExpr) -> CellExpr:
         return Mult(self, other)
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
+        for dep in self.dependencies:
+            dep.update_cell_refs(ref_map)
 
 
 class Empty(CellExpr):
@@ -124,6 +130,13 @@ class CellRef(CellExpr):
 
     def is_primitive(self) -> bool:
         return False
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
+        if self._cell_ref.element in ref_map:
+            self._cell_ref = ref_map[self._cell_ref.element]
+
+        for dep in self.dependencies:
+            dep.update_cell_refs(ref_map)
 
 
 class Mult(CellExpr):

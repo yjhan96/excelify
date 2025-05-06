@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Mapping
 
 from excelify._cell_expr import CellExpr, Constant
 from excelify._types import RawInput
@@ -30,6 +30,9 @@ class Cell:
     @property
     def dependencies(self) -> list[Cell]:
         return self.cell_expr.dependencies
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
+        self.cell_expr.update_cell_refs(ref_map)
 
     def compute(self) -> None:
         return self.cell_expr.compute()

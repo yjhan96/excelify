@@ -73,14 +73,31 @@ class ExcelFrame:
         ordered_columns: list[str] | None = None,
     ):
         self._id = uuid.uuid4()
-        self._input = {
+        self._input: dict[str, Column] = {
             key: Column(self._id, key, values) for key, values in input.items()
         }
+        prev_refs = self._get_refs(input)
+        self._update_self_refs(prev_refs)
         self._ordered_columns: list[str]
         if ordered_columns is not None:
             self._ordered_columns = ordered_columns
         else:
             self._ordered_columns = list(self._input.keys())
+
+    def _get_refs(
+        self, input: Mapping[str, Iterable[RawInput | Cell | CellExpr]]
+    ) -> Mapping[Element, Cell]:
+        res = {}
+        for col_name, values in input.items():
+            for i, value in enumerate(values):
+                if isinstance(value, Cell):
+                    res[value.element] = self._input[col_name][i]
+        return res
+
+    def _update_self_refs(self, prev_refs: Mapping[Element, Cell]) -> None:
+        for cells in self._input.values():
+            for cell in cells:
+                cell.update_cell_refs(prev_refs)
 
     @classmethod
     def empty(cls, *, columns: list[str], width: int) -> ExcelFrame:
