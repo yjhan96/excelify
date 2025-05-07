@@ -39,7 +39,7 @@ class CellMapping:
     def __getitem__(self, element: Element) -> str:
         start_row, start_col = self._start_pos
         _, col_name, idx = element
-        return f"{self._int_to_alpha(idx + start_col)}{self._columns[col_name] + start_row}"
+        return f"{self._int_to_alpha(self._columns[col_name] + start_col)}{idx + start_row + 1}"
 
 
 def _topological_sort(cells: list[Cell]) -> list[Cell]:
