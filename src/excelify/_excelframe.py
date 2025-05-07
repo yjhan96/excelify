@@ -163,24 +163,24 @@ class ExcelFrame:
         # and write two excel files, one with formulas and one wih values only.
 
         path = Path(path) if isinstance(path, str) else path
-        mapping = CellMapping(self.columns, start_pos=start_pos)
+        start_row, start_col = start_pos
+        mapping = CellMapping(self.columns, start_pos=(start_row, start_col - 1))
         if path.exists():
             workbook = openpyxl.load_workbook(path)
         else:
             workbook = openpyxl.Workbook()
         worksheet = workbook.active
         assert worksheet is not None
-        start_row, start_col = start_pos
         for i, col in enumerate(self._ordered_columns):
             cells = self._input[col]
-            worksheet.cell(row=start_row + i, column=start_col).value = col
+            worksheet.cell(row=start_row, column=start_col + i).value = col
             start_offset = 1
             for j, cell in enumerate(cells):
                 formula = cell.to_formula(mapping)
                 if not cell.cell_expr.is_primitive():
                     formula = f"={formula}"
                 worksheet.cell(
-                    row=start_row + i, column=start_col + j + start_offset
+                    row=start_row + j + start_offset, column=start_col + i
                 ).value = formula
 
         workbook.save(path)
