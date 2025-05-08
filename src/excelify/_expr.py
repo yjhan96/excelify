@@ -15,7 +15,7 @@ from excelify._cell_expr import (
     Neg,
     Sub,
 )
-from excelify._element import Element
+from excelify._types import RawInput
 
 if TYPE_CHECKING:
     from excelify._cell import Cell
@@ -209,12 +209,16 @@ class NegCol(Expr):
 
 
 class Map(Expr):
-    def __init__(self, fn: Callable[[int], CellExpr]):
+    def __init__(self, fn: Callable[[int], CellExpr | RawInput]):
         super().__init__()
         self._fn = fn
 
     def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
-        return self._fn(idx)
+        res = self._fn(idx)
+        if isinstance(res, RawInput):
+            return Constant(res)
+        else:
+            return res
 
     def _fallback_repr(self) -> str:
         raise ValueError(f"Please provide a name of the map column!: {self._fn=}")

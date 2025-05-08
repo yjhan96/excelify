@@ -105,8 +105,8 @@ class ExcelFrame:
                 cell.update_cell_refs(prev_refs)
 
     @classmethod
-    def empty(cls, *, columns: list[str], width: int) -> ExcelFrame:
-        input = {col_name: [Empty() for _ in range(width)] for col_name in columns}
+    def empty(cls, *, columns: list[str], height: int) -> ExcelFrame:
+        input = {col_name: [Empty() for _ in range(height)] for col_name in columns}
         return ExcelFrame(input, ordered_columns=columns)
 
     @overload
