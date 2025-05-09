@@ -52,3 +52,7 @@ class Column:
 
     def extend(self, other: Column) -> None:
         self._values.extend(other._values)
+
+    @property
+    def key(self) -> str:
+        return self._key

@@ -11,6 +11,7 @@ from excelify._expr import (
     SingleCellExpr,
     SubCol,
     col,
+    lit,
 )
 
 __all__ = [
@@ -35,4 +36,5 @@ __all__ = [
     "SingleCellExpr",
     "Map",
     "concat",
+    "lit",
 ]

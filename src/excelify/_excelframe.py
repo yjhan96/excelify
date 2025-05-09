@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import uuid
 from pathlib import Path
 from typing import Iterable, Mapping, overload
@@ -10,7 +11,7 @@ from excelify._cell import Cell
 from excelify._cell_expr import CellExpr, Constant, Empty
 from excelify._column import Column
 from excelify._element import Element
-from excelify._expr import Expr
+from excelify._expr import Expr, Map
 from excelify._html import NotebookFormatter
 from excelify._types import RawInput
 
@@ -84,7 +85,7 @@ class ExcelFrame:
         self._update_self_refs(prev_refs)
         self._ordered_columns: list[str]
         if ordered_columns is not None:
-            self._ordered_columns = ordered_columns
+            self._ordered_columns = copy.copy(ordered_columns)
         else:
             self._ordered_columns = list(self._input.keys())
 
@@ -266,11 +267,14 @@ class ExcelFrame:
         return ExcelFrame(dict(columns))
 
     def select(self, columns: list[str]) -> ExcelFrame:
-        copy = self._copy()
-        copy._ordered_columns = columns
+        res = self._copy()
+        res._ordered_columns = copy.copy(columns)
         # Update input by only taking the data specified in the column.
-        copy._input = {col: copy._input[col] for col in copy._ordered_columns}
-        return copy
+        res._input = {col: res._input[col] for col in res._ordered_columns}
+        return res
+
+    def with_row_index(self, name: str = "index", offset: int = 0) -> ExcelFrame:
+        return self.with_columns(Map(lambda idx: idx + offset).alias(name))
 
 
 def concat(dfs: Iterable[ExcelFrame]) -> ExcelFrame:

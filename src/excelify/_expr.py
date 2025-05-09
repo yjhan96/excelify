@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from excelify._cell import Cell
 from excelify._cell_expr import (
@@ -15,6 +15,7 @@ from excelify._cell_expr import (
     Neg,
     Sub,
 )
+from excelify._column import Column
 from excelify._types import RawInput
 
 if TYPE_CHECKING:
@@ -135,6 +136,27 @@ def col(col_name: str, *, from_: ExcelFrame | None = None, offset: int = 0):
     return Col(col_name, from_=from_, offset=offset)
 
 
+class LitColumn(Expr):
+    def __init__(self, column: list[RawInput]):
+        super().__init__()
+        self._column = column
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        return Constant(self._column[idx])
+
+    def _fallback_repr(self) -> str:
+        raise ValueError("Impossible to reach!")
+
+
+def lit(value: Any) -> Expr:
+    if isinstance(value, int) or isinstance(value, float):
+        return ConstantExpr(value)
+    elif isinstance(value, list):
+        return LitColumn(value)
+    else:
+        raise ValueError(f"Invalid type of value: {value} ({type(value)})")
+
+
 class MultCol(Expr):
     def __init__(self, left_expr: Expr, right_expr: Expr):
         super().__init__()
@@ -217,6 +239,8 @@ class Map(Expr):
         res = self._fn(idx)
         if isinstance(res, RawInput):
             return Constant(res)
+        elif isinstance(res, Expr):
+            return res.get_cell_expr(df, idx)
         else:
             return res
 
