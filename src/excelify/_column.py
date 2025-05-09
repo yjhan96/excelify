@@ -56,3 +56,22 @@ class Column:
     @property
     def key(self) -> str:
         return self._key
+
+
+class ColumnAutocompleter:
+    def __init__(self, columns: Iterable[str]):
+        self._columns = columns
+
+        for col_name in self._columns:
+            invalid_chars = [" ", "-", "(", ")", ","]
+            revised_col_name = col_name
+            for c in invalid_chars:
+                revised_col_name = revised_col_name.replace(c, "_")
+            revised_col_name = revised_col_name.replace("%", "percent")
+            revised_col_name = revised_col_name.replace("&", "and")
+            if hasattr(self, revised_col_name):
+                raise ValueError(
+                    "Column named collided during revision: "
+                    f"{col_name} vs. {getattr(self, revised_col_name)}."
+                )
+            setattr(self, revised_col_name, col_name)

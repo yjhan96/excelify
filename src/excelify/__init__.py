@@ -13,6 +13,7 @@ from excelify._expr import (
     col,
     lit,
 )
+from excelify._column import ColumnAutocompleter
 
 __all__ = [
     "ExcelFrame",
@@ -37,4 +38,5 @@ __all__ = [
     "Map",
     "concat",
     "lit",
+    "ColumnAutocompleter",
 ]
