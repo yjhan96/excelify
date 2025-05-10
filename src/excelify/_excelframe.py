@@ -33,7 +33,10 @@ class CellMapping:
         result = []
         while idx > 0:
             rem = idx % num_alphabets
-            result.append(chr(ord("A") + rem))
+            if len(result) == 0:
+                result.append(chr(ord("A") + rem))
+            else:
+                result.append(chr(ord("A") + rem - 1))
             idx = idx // num_alphabets
         return "".join(reversed(result))
 
@@ -249,6 +252,7 @@ class ExcelFrame:
         header_name: str = "column",
         column_names: Iterable[str] | None = None,
     ) -> ExcelFrame:
+        copy = self._copy()
         columns = []
         if include_header:
             columns.append((header_name, self.columns))
@@ -263,7 +267,7 @@ class ExcelFrame:
                 col_name = next(iterator)
             except StopIteration:
                 col_name = f"column_{i}"
-            columns.append((col_name, self[i]))
+            columns.append((col_name, copy[i]))
         return ExcelFrame(dict(columns))
 
     def select(self, columns: list[str]) -> ExcelFrame:
