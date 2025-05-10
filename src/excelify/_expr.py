@@ -13,9 +13,9 @@ from excelify._cell_expr import (
     Invalid,
     Mult,
     Neg,
+    Pow,
     Sub,
 )
-from excelify._column import Column
 from excelify._types import RawInput
 
 if TYPE_CHECKING:
@@ -76,8 +76,29 @@ class Expr(ABC):
         assert isinstance(other, Expr)
         return SubCol(self, other)
 
+    def __rsub__(self, other) -> Expr:
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return SubCol(other, self)
+
     def __neg__(self) -> Expr:
         return NegCol(self)
+
+    def __pow__(self, other) -> Expr:
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return PowCol(self, other)
+
+    def __rpow__(self, other) -> Expr:
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return PowCol(other, self)
 
 
 class ConstantExpr(Expr):
@@ -228,6 +249,21 @@ class NegCol(Expr):
 
     def _fallback_repr(self) -> str:
         return f"Neg({self._expr})"
+
+
+class PowCol(Expr):
+    def __init__(self, left_expr: Expr, right_expr: Expr):
+        super().__init__()
+        self._left_expr = left_expr
+        self._right_expr = right_expr
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        left_cell_expr = self._left_expr.get_cell_expr(df, idx)
+        right_cell_expr = self._right_expr.get_cell_expr(df, idx)
+        return Pow(left_cell_expr, right_cell_expr)
+
+    def _fallback_repr(self) -> str:
+        return f"Exp({self._left_expr}, {self._right_expr})"
 
 
 class Map(Expr):

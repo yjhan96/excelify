@@ -50,8 +50,14 @@ class CellExpr(ABC):
     def __add__(self, other: CellExpr) -> CellExpr:
         return Add(self, other)
 
+    def __sub__(self, other: CellExpr) -> CellExpr:
+        return Sub(self, other)
+
     def __mul__(self, other: CellExpr) -> CellExpr:
         return Mult(self, other)
+
+    def __pow__(self, other: CellExpr) -> CellExpr:
+        return Pow(self, other)
 
     @abstractmethod
     def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
@@ -286,6 +292,43 @@ class Sub(CellExpr):
             self._last_value = None
         else:
             self._last_value = left_last_value - right_last_value
+
+    def is_primitive(self) -> bool:
+        return False
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
+        self._left_cell_expr.update_cell_refs(ref_map)
+        self._right_cell_expr.update_cell_refs(ref_map)
+
+
+class Pow(CellExpr):
+    def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
+        super().__init__()
+        self._left_cell_expr = left_cell_expr
+        self._right_cell_expr = right_cell_expr
+
+    @property
+    def dependencies(self) -> list[Cell]:
+        return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
+
+    def to_formula(self, mapping: CellMapping) -> str:
+        try:
+            return f"""({self._left_cell_expr.to_formula(mapping)} ^ {
+                self._right_cell_expr.to_formula(mapping)
+            })"""
+        except InvalidCellException:
+            return "ERROR"
+
+    def compute(self) -> None:
+        self._left_cell_expr.compute()
+        self._right_cell_expr.compute()
+        left_last_value = self._left_cell_expr.last_value
+        right_last_value = self._right_cell_expr.last_value
+
+        if left_last_value is None or right_last_value is None:
+            self._last_value = None
+        else:
+            self._last_value = left_last_value**right_last_value
 
     def is_primitive(self) -> bool:
         return False
