@@ -11,7 +11,7 @@ from excelify._cell import Cell
 from excelify._cell_expr import CellExpr, Constant, Empty
 from excelify._column import Column
 from excelify._element import Element
-from excelify._expr import Expr, Map
+from excelify._expr import Expr
 from excelify._html import NotebookFormatter
 from excelify._types import RawInput
 
@@ -217,6 +217,7 @@ class ExcelFrame:
                     col_name,
                     [expr.get_cell_expr(copy, i) for i in range(height)],
                 )
+                copy._ordered_columns.append(col_name)
         return copy
 
     def evaluate(self) -> ExcelFrame:
@@ -277,8 +278,45 @@ class ExcelFrame:
         res._input = {col: res._input[col] for col in res._ordered_columns}
         return res
 
-    def with_row_index(self, name: str = "index", offset: int = 0) -> ExcelFrame:
-        return self.with_columns(Map(lambda idx: idx + offset).alias(name))
+    def to_json(
+        self, *, include_header: bool = False, start_pos: tuple[int, int] = (0, 0)
+    ):
+        table = []
+        start_row, start_col = start_pos
+        if include_header:
+            start_row = start_row + 1
+        cell_mapping = CellMapping(self.columns, (start_row, start_col))
+
+        col_to_offset = {col: i for i, col in enumerate(self.columns)}
+        evaluated_df = self.evaluate()
+        for col_name in self.columns:
+            formula_column = self._input[col_name]
+            value_column = evaluated_df[col_name]
+            curr_column: list
+            if include_header:
+                curr_column = [
+                    {"formula": col_name, "value": col_name, "dep_indices": []}
+                ]
+            else:
+                curr_column = []
+            for formula_cell, value_cell in zip(
+                formula_column, value_column, strict=True
+            ):
+                deps = formula_cell.dependencies
+                dep_indices = []
+                for dep in deps:
+                    _, dep_col_name, dep_idx = dep.element
+                    dep_indices.append(
+                        (start_row + dep_idx, start_col + col_to_offset[dep_col_name])
+                    )
+                data = {
+                    "formula": formula_cell.to_formula(cell_mapping),
+                    "value": value_cell.to_formula(cell_mapping),
+                    "dep_indices": dep_indices,
+                }
+                curr_column.append(data)
+            table.append(curr_column)
+        return {"table": table}
 
 
 def concat(dfs: Iterable[ExcelFrame]) -> ExcelFrame:
