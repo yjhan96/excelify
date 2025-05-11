@@ -11,7 +11,12 @@ if TYPE_CHECKING:
 
 class Cell:
     def __init__(
-        self, element: Element, cell_expr: CellExpr, *, attributes: dict | None = None
+        self,
+        element: Element,
+        cell_expr: CellExpr,
+        *,
+        attributes: dict | None = None,
+        is_editable: bool = False,
     ):
         self._element = element
         self.cell_expr = cell_expr
@@ -19,6 +24,7 @@ class Cell:
             self._attributes = {}
         else:
             self._attributes = attributes
+        self._is_editable = is_editable
 
     def to_formula(self, mapping: CellMapping) -> str:
         return self.cell_expr.to_formula(mapping)
@@ -30,6 +36,14 @@ class Cell:
     @property
     def dependencies(self) -> list[Cell]:
         return self.cell_expr.dependencies
+
+    @property
+    def is_editable(self) -> bool:
+        return self._is_editable
+
+    @is_editable.setter
+    def is_editable(self, value: bool) -> None:
+        self._is_editable = value
 
     def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
         self.cell_expr.update_cell_refs(ref_map)

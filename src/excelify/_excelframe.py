@@ -295,7 +295,12 @@ class ExcelFrame:
             curr_column: list
             if include_header:
                 curr_column = [
-                    {"formula": col_name, "value": col_name, "dep_indices": []}
+                    {
+                        "formula": col_name,
+                        "value": col_name,
+                        "dep_indices": [],
+                        "is_editable": False,
+                    }
                 ]
             else:
                 curr_column = []
@@ -313,6 +318,7 @@ class ExcelFrame:
                     "formula": formula_cell.to_formula(cell_mapping),
                     "value": value_cell.to_formula(cell_mapping),
                     "dep_indices": dep_indices,
+                    "is_editable": formula_cell.is_editable,
                 }
                 curr_column.append(data)
             table.append(curr_column)
