@@ -17,9 +17,6 @@ class InvalidCellException(Exception):
 
 
 class CellExpr(ABC):
-    def __init__(self):
-        self._last_value = None
-
     @property
     @abstractmethod
     def dependencies(self) -> list[Cell]:
@@ -30,12 +27,8 @@ class CellExpr(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def compute(self) -> None:
+    def compute(self) -> Any:
         raise NotImplementedError
-
-    @property
-    def last_value(self) -> Any:
-        return self._last_value
 
     @abstractmethod
     def is_primitive(self) -> bool:
@@ -75,8 +68,8 @@ class Empty(CellExpr):
     def to_formula(self, mapping: CellMapping) -> str:
         return ""
 
-    def compute(self) -> None:
-        self._last_value = 0
+    def compute(self) -> Any:
+        return 0
 
     def is_primitive(self) -> bool:
         return True
@@ -96,8 +89,8 @@ class Invalid(CellExpr):
     def to_formula(self, mapping: CellMapping) -> str:
         raise InvalidCellException("Invalid cell!")
 
-    def compute(self) -> None:
-        self._last_value = None
+    def compute(self) -> Any:
+        return None
 
     def is_primitive(self) -> bool:
         return True
@@ -118,8 +111,8 @@ class Constant(CellExpr):
     def to_formula(self, mapping: CellMapping) -> str:
         return str(self.value)
 
-    def compute(self) -> None:
-        self._last_value = self.value
+    def compute(self) -> Any:
+        return self.value
 
     def is_primitive(self) -> bool:
         return True
@@ -140,8 +133,8 @@ class CellRef(CellExpr):
     def to_formula(self, mapping: CellMapping) -> str:
         return mapping[self._cell_ref.element]
 
-    def compute(self) -> None:
-        self._last_value = self._cell_ref.last_value
+    def compute(self) -> Any:
+        return self._cell_ref.last_value
 
     def is_primitive(self) -> bool:
         return False
@@ -149,6 +142,66 @@ class CellRef(CellExpr):
     def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
         if self._cell_ref.element in ref_map:
             self._cell_ref = ref_map[self._cell_ref.element]
+
+
+class SumCellsRef(CellExpr):
+    def __init__(self, cells: list[Cell]):
+        super().__init__()
+        self._cells = cells
+
+    @property
+    def dependencies(self) -> list[Cell]:
+        return [cell for cell in self._cells]
+
+    def to_formula(self, mapping: CellMapping) -> str:
+        return (
+            f"SUM({mapping[self._cells[0].element]}:{mapping[self._cells[-1].element]})"
+        )
+
+    def compute(self) -> Any:
+        values = [cell.last_value for cell in self._cells]
+
+        if any(value is None for value in values):
+            return None
+        else:
+            return sum(values)
+
+    def is_primitive(self) -> bool:
+        return False
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
+        for i in range(len(self._cells)):
+            if self._cells[i].element in ref_map:
+                self._cells[i] = ref_map[self._cells[i].element]
+
+
+class AverageCellsRef(CellExpr):
+    def __init__(self, cells: list[Cell]):
+        super().__init__()
+        self._cells = cells
+
+    @property
+    def dependencies(self) -> list[Cell]:
+        return [cell for cell in self._cells]
+
+    def to_formula(self, mapping: CellMapping) -> str:
+        return f"AVERAGE({mapping[self._cells[0].element]}:{mapping[self._cells[-1].element]})"
+
+    def compute(self) -> Any:
+        values = [cell.last_value for cell in self._cells]
+
+        if any(value is None for value in values):
+            return None
+        else:
+            return sum(values) / len(values)
+
+    def is_primitive(self) -> bool:
+        return False
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
+        for i in range(len(self._cells)):
+            if self._cells[i].element in ref_map:
+                self._cells[i] = ref_map[self._cells[i].element]
 
 
 class Mult(CellExpr):
@@ -169,16 +222,14 @@ class Mult(CellExpr):
         except InvalidCellException:
             return "ERROR"
 
-    def compute(self) -> None:
-        self._left_cell_expr.compute()
-        self._right_cell_expr.compute()
-        left_last_value = self._left_cell_expr.last_value
-        right_last_value = self._right_cell_expr.last_value
+    def compute(self) -> Any:
+        left_value = self._left_cell_expr.compute()
+        right_value = self._right_cell_expr.compute()
 
-        if left_last_value is None or right_last_value is None:
-            self._last_value = None
+        if left_value is None or right_value is None:
+            return None
         else:
-            self._last_value = left_last_value * right_last_value
+            return left_value * right_value
 
     def is_primitive(self) -> bool:
         return False
@@ -206,15 +257,13 @@ class Add(CellExpr):
         except InvalidCellException:
             return "ERROR"
 
-    def compute(self) -> None:
-        self._left_cell_expr.compute()
-        self._right_cell_expr.compute()
-        left_last_value = self._left_cell_expr.last_value
-        right_last_value = self._right_cell_expr.last_value
-        if left_last_value is None or right_last_value is None:
-            self._last_value = None
+    def compute(self) -> Any:
+        left_value = self._left_cell_expr.compute()
+        right_value = self._right_cell_expr.compute()
+        if left_value is None or right_value is None:
+            return None
         else:
-            self._last_value = left_last_value + right_last_value
+            return left_value + right_value
 
     def is_primitive(self) -> bool:
         return False
@@ -242,19 +291,17 @@ class Div(CellExpr):
         except InvalidCellException:
             return "ERROR"
 
-    def compute(self) -> None:
-        self._left_cell_expr.compute()
-        self._right_cell_expr.compute()
-        left_last_value = self._left_cell_expr.last_value
-        right_last_value = self._right_cell_expr.last_value
+    def compute(self) -> Any:
+        left_value = self._left_cell_expr.compute()
+        right_value = self._right_cell_expr.compute()
 
-        if left_last_value is None or right_last_value is None:
-            self._last_value = None
+        if left_value is None or right_value is None:
+            return None
         else:
             try:
-                self._last_value = left_last_value / right_last_value
+                return left_value / right_value
             except ZeroDivisionError:
-                self._last_value = np.inf
+                return np.inf
 
     def is_primitive(self) -> bool:
         return False
@@ -282,16 +329,14 @@ class Sub(CellExpr):
         except InvalidCellException:
             return "ERROR"
 
-    def compute(self) -> None:
-        self._left_cell_expr.compute()
-        self._right_cell_expr.compute()
-        left_last_value = self._left_cell_expr.last_value
-        right_last_value = self._right_cell_expr.last_value
+    def compute(self) -> Any:
+        left_value = self._left_cell_expr.compute()
+        right_value = self._right_cell_expr.compute()
 
-        if left_last_value is None or right_last_value is None:
-            self._last_value = None
+        if left_value is None or right_value is None:
+            return None
         else:
-            self._last_value = left_last_value - right_last_value
+            return left_value - right_value
 
     def is_primitive(self) -> bool:
         return False
@@ -319,16 +364,14 @@ class Pow(CellExpr):
         except InvalidCellException:
             return "ERROR"
 
-    def compute(self) -> None:
-        self._left_cell_expr.compute()
-        self._right_cell_expr.compute()
-        left_last_value = self._left_cell_expr.last_value
-        right_last_value = self._right_cell_expr.last_value
+    def compute(self) -> Any:
+        left_value = self._left_cell_expr.compute()
+        right_value = self._right_cell_expr.compute()
 
-        if left_last_value is None or right_last_value is None:
-            self._last_value = None
+        if left_value is None or right_value is None:
+            return None
         else:
-            self._last_value = left_last_value**right_last_value
+            return left_value**right_value
 
     def is_primitive(self) -> bool:
         return False
@@ -354,11 +397,11 @@ class Neg(CellExpr):
             return "ERROR"
 
     def compute(self) -> None:
-        self._expr.compute()
-        if self._expr.last_value is None:
-            self._last_value = None
+        value = self._expr.compute()
+        if value is None:
+            return None
         else:
-            self._last_value = -self._expr.last_value
+            return -value
 
     def is_primitive(self) -> bool:
         return False

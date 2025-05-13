@@ -25,6 +25,7 @@ class Cell:
         else:
             self._attributes = attributes
         self._is_editable = is_editable
+        self._last_value = None
 
     def to_formula(self, mapping: CellMapping) -> str:
         return self.cell_expr.to_formula(mapping)
@@ -49,14 +50,14 @@ class Cell:
         self.cell_expr.update_cell_refs(ref_map)
 
     def compute(self) -> None:
-        return self.cell_expr.compute()
+        self._last_value = self.cell_expr.compute()
 
     def set_expr(self, cell_expr) -> None:
         self.cell_expr = cell_expr
 
     @property
     def last_value(self) -> Any:
-        return self.cell_expr.last_value
+        return self._last_value
 
     @classmethod
     def _resolve_to_cell_expr(cls, value: Cell | RawInput | CellExpr) -> CellExpr:
@@ -94,3 +95,6 @@ class Cell:
     @property
     def attributes(self) -> dict:
         return self._attributes
+
+    def __repr__(self):
+        return str(self._element)

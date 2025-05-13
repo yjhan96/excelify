@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from excelify._cell import Cell
 from excelify._cell_expr import (
     Add,
+    AverageCellsRef,
     CellExpr,
     CellRef,
     Constant,
@@ -15,6 +16,7 @@ from excelify._cell_expr import (
     Neg,
     Pow,
     Sub,
+    SumCellsRef,
 )
 from excelify._types import RawInput
 
@@ -282,3 +284,41 @@ class Map(Expr):
 
     def _fallback_repr(self) -> str:
         raise ValueError(f"Please provide a name of the map column!: {self._fn=}")
+
+
+class SumCol(Expr):
+    def __init__(self, col_name: str, *, from_: ExcelFrame | None = None):
+        super().__init__()
+        self._col_name = col_name
+        self.from_ = from_
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        from_df = self.from_ if self.from_ is not None else df
+        column = [cell for cell in from_df[self._col_name]]
+        return SumCellsRef(column)
+
+    def _fallback_repr(self) -> str:
+        return f"Sum({self._col_name})"
+
+
+def sum(col_name: str, *, from_: ExcelFrame | None = None):
+    return SumCol(col_name, from_=from_)
+
+
+class AverageCol(Expr):
+    def __init__(self, col_name: str, *, from_: ExcelFrame | None = None):
+        super().__init__()
+        self._col_name = col_name
+        self.from_ = from_
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        from_df = self.from_ if self.from_ is not None else df
+        column = [cell for cell in from_df[self._col_name]]
+        return AverageCellsRef(column)
+
+    def _fallback_repr(self) -> str:
+        return f"Average({self._col_name})"
+
+
+def average(col_name: str, *, from_: ExcelFrame | None = None):
+    return AverageCol(col_name, from_=from_)

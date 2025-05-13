@@ -1,5 +1,6 @@
 from excelify._cell import Cell
 from excelify._cell_expr import Add, CellExpr, CellRef, Constant, Div, Empty, Mult, Sub
+from excelify._column import ColumnAutocompleter
 from excelify._excelframe import CellMapping, ExcelFrame, concat
 from excelify._expr import (
     AddCol,
@@ -10,10 +11,11 @@ from excelify._expr import (
     MultCol,
     SingleCellExpr,
     SubCol,
+    average,
     col,
     lit,
+    sum,
 )
-from excelify._column import ColumnAutocompleter
 
 __all__ = [
     "ExcelFrame",
@@ -39,4 +41,6 @@ __all__ = [
     "concat",
     "lit",
     "ColumnAutocompleter",
+    "sum",
+    "average",
 ]
