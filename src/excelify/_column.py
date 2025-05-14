@@ -23,6 +23,7 @@ class Column:
                         Element(id, key, i),
                         value.cell_expr,
                         attributes=value.attributes,
+                        is_editable=value.is_editable,
                     )
                     if isinstance(value, Cell)
                     else Cell(Element(id, key, i), value)
