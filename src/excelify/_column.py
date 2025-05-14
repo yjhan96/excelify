@@ -14,23 +14,16 @@ class Column:
         self, id: uuid.UUID, key: str, values: Iterable[Cell | RawInput | CellExpr]
     ):
         self._id = id
-        self._values = [
-            (
-                Cell(Element(id, key, i), Constant(value))
-                if isinstance(value, RawInput)
-                else (
-                    Cell(
-                        Element(id, key, i),
-                        value.cell_expr,
-                        attributes=value.attributes,
-                        is_editable=value.is_editable,
-                    )
-                    if isinstance(value, Cell)
-                    else Cell(Element(id, key, i), value)
-                )
-            )
-            for i, value in enumerate(values)
-        ]
+        self._values: list[Cell]
+        for i, value in enumerate(values):
+            cell: Cell
+            if isinstance(value, RawInput):
+                cell = Cell(Element(id, key, i), Constant(value))
+            elif isinstance(value, Cell):
+                cell = value.copy(Element(id, key, i))
+            else:
+                cell = Cell(Element(id, key, i), value)
+            self._values.append(cell)
         self._key = key
 
     def __getitem__(self, idx: int) -> Cell:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 import uuid
 from pathlib import Path
-from typing import Iterable, Mapping, overload
+from typing import Iterable, Mapping, Sequence, overload
 
 import openpyxl
 
@@ -17,13 +17,11 @@ from excelify._types import RawInput
 
 
 class CellMapping:
-    def __init__(self, columns: list | dict, start_pos: tuple[int, int]):
-        if isinstance(columns, list):
-            self._columns = {c: i for i, c in enumerate(columns)}
-        else:
-            assert isinstance(columns, dict)
-            self._columns = columns
-        self._start_pos = start_pos
+    def __init__(self, dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]]):
+        self._id_to_start_pos = {df.id: start_pos for df, start_pos in dfs}
+        self._columns = {
+            df.id: {c: i for i, c in enumerate(df.columns)} for df, _ in dfs
+        }
 
     def _int_to_alpha(self, idx: int) -> str:
         num_alphabets = 26
@@ -41,9 +39,11 @@ class CellMapping:
         return "".join(reversed(result))
 
     def __getitem__(self, element: Element) -> str:
-        start_row, start_col = self._start_pos
-        _, col_name, idx = element
-        return f"{self._int_to_alpha(self._columns[col_name] + start_col)}{idx + start_row + 1}"
+        id, col_name, idx = element
+        start_row, start_col = self._id_to_start_pos[id]
+        col_idx = self._int_to_alpha(self._columns[id][col_name] + start_col)
+        row_idx = idx + start_row + 1
+        return f"{col_idx}{row_idx}"
 
 
 def _topological_sort(cells: list[Cell]) -> list[Cell]:
@@ -77,6 +77,7 @@ class ExcelFrame:
         ordered_columns: list[str] | None = None,
     ):
         self._id = uuid.uuid4()
+        print(self._id)
         prev_cells = self._get_cell_elements(input)
         self._input: dict[str, Column] = {
             key: Column(self._id, key, values) for key, values in input.items()
@@ -168,7 +169,7 @@ class ExcelFrame:
 
         path = Path(path) if isinstance(path, str) else path
         start_row, start_col = start_pos
-        mapping = CellMapping(self.columns, start_pos=(start_row, start_col - 1))
+        mapping = CellMapping([(self, (start_row, start_col - 1))])
         if path.exists():
             workbook = openpyxl.load_workbook(path)
         else:
@@ -285,7 +286,7 @@ class ExcelFrame:
         start_row, start_col = start_pos
         if include_header:
             start_row = start_row + 1
-        cell_mapping = CellMapping(self.columns, (start_row, start_col))
+        cell_mapping = CellMapping([(self, (start_row, start_col))])
 
         col_to_offset = {col: i for i, col in enumerate(self.columns)}
         evaluated_df = self.evaluate()

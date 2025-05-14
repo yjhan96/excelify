@@ -90,7 +90,7 @@ class HTMLFormatter:
     def write_body(self) -> None:
         from excelify._excelframe import CellMapping
 
-        mapping = CellMapping(self.df.columns, start_pos=(0, 0))
+        mapping = CellMapping([(self.df, (0, 0))])
 
         with Tag(self.elements, "tbody"):
             for r in self.row_idx:

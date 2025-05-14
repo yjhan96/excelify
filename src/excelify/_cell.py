@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from typing import TYPE_CHECKING, Any, Mapping
 
 from excelify._cell_expr import CellExpr, Constant
@@ -29,6 +30,14 @@ class Cell:
 
     def to_formula(self, mapping: CellMapping) -> str:
         return self.cell_expr.to_formula(mapping)
+
+    def copy(self, new_element: Element) -> Cell:
+        return Cell(
+            new_element,
+            copy.copy(self.cell_expr),
+            attributes=copy.copy(self._attributes),
+            is_editable=self._is_editable,
+        )
 
     @property
     def element(self) -> Element:
