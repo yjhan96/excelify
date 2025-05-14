@@ -53,7 +53,7 @@ class CellExpr(ABC):
         return Pow(self, other)
 
     @abstractmethod
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
         raise NotImplementedError
 
 
@@ -74,8 +74,8 @@ class Empty(CellExpr):
     def is_primitive(self) -> bool:
         return True
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        return
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        return self
 
 
 class Invalid(CellExpr):
@@ -95,8 +95,8 @@ class Invalid(CellExpr):
     def is_primitive(self) -> bool:
         return True
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        return
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        return self
 
 
 class Constant(CellExpr):
@@ -117,8 +117,8 @@ class Constant(CellExpr):
     def is_primitive(self) -> bool:
         return True
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        return
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        return self
 
 
 class CellRef(CellExpr):
@@ -139,9 +139,11 @@ class CellRef(CellExpr):
     def is_primitive(self) -> bool:
         return False
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
         if self._cell_ref.element in ref_map:
-            self._cell_ref = ref_map[self._cell_ref.element]
+            return CellRef(ref_map[self._cell_ref.element])
+        else:
+            return self
 
 
 class SumCellsRef(CellExpr):
@@ -169,10 +171,17 @@ class SumCellsRef(CellExpr):
     def is_primitive(self) -> bool:
         return False
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        for i in range(len(self._cells)):
-            if self._cells[i].element in ref_map:
-                self._cells[i] = ref_map[self._cells[i].element]
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        if any(self._cells[i].element in ref_map for i in range(len(self._cells))):
+            cells = []
+            for i in range(len(self._cells)):
+                if self._cells[i].element in ref_map:
+                    cells.append(ref_map[self._cells[i].element])
+                else:
+                    cells.append(self._cells[i])
+            return SumCellsRef(cells)
+        else:
+            return self
 
 
 class AverageCellsRef(CellExpr):
@@ -198,10 +207,17 @@ class AverageCellsRef(CellExpr):
     def is_primitive(self) -> bool:
         return False
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        for i in range(len(self._cells)):
-            if self._cells[i].element in ref_map:
-                self._cells[i] = ref_map[self._cells[i].element]
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        if any(self._cells[i].element in ref_map for i in range(len(self._cells))):
+            cells = []
+            for i in range(len(self._cells)):
+                if self._cells[i].element in ref_map:
+                    cells.append(ref_map[self._cells[i].element])
+                else:
+                    cells.append(self._cells[i])
+            return SumCellsRef(cells)
+        else:
+            return self
 
 
 class Mult(CellExpr):
@@ -234,9 +250,17 @@ class Mult(CellExpr):
     def is_primitive(self) -> bool:
         return False
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        self._left_cell_expr.update_cell_refs(ref_map)
-        self._right_cell_expr.update_cell_refs(ref_map)
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        left_cell_expr = self._left_cell_expr.update_cell_refs(ref_map)
+        right_cell_expr = self._right_cell_expr.update_cell_refs(ref_map)
+
+        if (
+            left_cell_expr == self._left_cell_expr
+            and right_cell_expr == self._right_cell_expr
+        ):
+            return self
+        else:
+            return Mult(left_cell_expr, right_cell_expr)
 
 
 class Add(CellExpr):
@@ -268,9 +292,17 @@ class Add(CellExpr):
     def is_primitive(self) -> bool:
         return False
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        self._left_cell_expr.update_cell_refs(ref_map)
-        self._right_cell_expr.update_cell_refs(ref_map)
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        left_cell_expr = self._left_cell_expr.update_cell_refs(ref_map)
+        right_cell_expr = self._right_cell_expr.update_cell_refs(ref_map)
+
+        if (
+            left_cell_expr == self._left_cell_expr
+            and right_cell_expr == self._right_cell_expr
+        ):
+            return self
+        else:
+            return Add(left_cell_expr, right_cell_expr)
 
 
 class Div(CellExpr):
@@ -306,9 +338,17 @@ class Div(CellExpr):
     def is_primitive(self) -> bool:
         return False
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        self._left_cell_expr.update_cell_refs(ref_map)
-        self._right_cell_expr.update_cell_refs(ref_map)
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        left_cell_expr = self._left_cell_expr.update_cell_refs(ref_map)
+        right_cell_expr = self._right_cell_expr.update_cell_refs(ref_map)
+
+        if (
+            left_cell_expr == self._left_cell_expr
+            and right_cell_expr == self._right_cell_expr
+        ):
+            return self
+        else:
+            return Div(left_cell_expr, right_cell_expr)
 
 
 class Sub(CellExpr):
@@ -341,9 +381,17 @@ class Sub(CellExpr):
     def is_primitive(self) -> bool:
         return False
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        self._left_cell_expr.update_cell_refs(ref_map)
-        self._right_cell_expr.update_cell_refs(ref_map)
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        left_cell_expr = self._left_cell_expr.update_cell_refs(ref_map)
+        right_cell_expr = self._right_cell_expr.update_cell_refs(ref_map)
+
+        if (
+            left_cell_expr == self._left_cell_expr
+            and right_cell_expr == self._right_cell_expr
+        ):
+            return self
+        else:
+            return Sub(left_cell_expr, right_cell_expr)
 
 
 class Pow(CellExpr):
@@ -376,9 +424,17 @@ class Pow(CellExpr):
     def is_primitive(self) -> bool:
         return False
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        self._left_cell_expr.update_cell_refs(ref_map)
-        self._right_cell_expr.update_cell_refs(ref_map)
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        left_cell_expr = self._left_cell_expr.update_cell_refs(ref_map)
+        right_cell_expr = self._right_cell_expr.update_cell_refs(ref_map)
+
+        if (
+            left_cell_expr == self._left_cell_expr
+            and right_cell_expr == self._right_cell_expr
+        ):
+            return self
+        else:
+            return Pow(left_cell_expr, right_cell_expr)
 
 
 class Neg(CellExpr):
@@ -406,5 +462,9 @@ class Neg(CellExpr):
     def is_primitive(self) -> bool:
         return False
 
-    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        self._expr.update_cell_refs(ref_map)
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        expr = self._expr.update_cell_refs(ref_map)
+        if expr == self._expr:
+            return self
+        else:
+            return Neg(expr)

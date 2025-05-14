@@ -77,7 +77,6 @@ class ExcelFrame:
         ordered_columns: list[str] | None = None,
     ):
         self._id = uuid.uuid4()
-        print(self._id)
         prev_cells = self._get_cell_elements(input)
         self._input: dict[str, Column] = {
             key: Column(self._id, key, values) for key, values in input.items()
@@ -330,7 +329,10 @@ def concat(dfs: Iterable[ExcelFrame]) -> ExcelFrame:
     input = {}
     for i, df in enumerate(dfs):
         if i == 0:
-            input = df._input
+            input = {
+                col_name: [cell for cell in cells]
+                for col_name, cells in df._input.items()
+            }
         else:
             for col in input:
                 input[col].extend(df[col])

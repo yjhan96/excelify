@@ -31,14 +31,6 @@ class Cell:
     def to_formula(self, mapping: CellMapping) -> str:
         return self.cell_expr.to_formula(mapping)
 
-    def copy(self, new_element: Element) -> Cell:
-        return Cell(
-            new_element,
-            copy.copy(self.cell_expr),
-            attributes=copy.copy(self._attributes),
-            is_editable=self._is_editable,
-        )
-
     @property
     def element(self) -> Element:
         return self._element
@@ -56,7 +48,7 @@ class Cell:
         self._is_editable = value
 
     def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> None:
-        self.cell_expr.update_cell_refs(ref_map)
+        self.cell_expr = self.cell_expr.update_cell_refs(ref_map)
 
     def compute(self) -> None:
         self._last_value = self.cell_expr.compute()

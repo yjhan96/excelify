@@ -14,13 +14,18 @@ class Column:
         self, id: uuid.UUID, key: str, values: Iterable[Cell | RawInput | CellExpr]
     ):
         self._id = id
-        self._values: list[Cell]
+        self._values: list[Cell] = []
         for i, value in enumerate(values):
             cell: Cell
             if isinstance(value, RawInput):
                 cell = Cell(Element(id, key, i), Constant(value))
             elif isinstance(value, Cell):
-                cell = value.copy(Element(id, key, i))
+                cell = Cell(
+                    Element(id, key, i),
+                    value.cell_expr,
+                    attributes=value.attributes,
+                    is_editable=value.is_editable,
+                )
             else:
                 cell = Cell(Element(id, key, i), value)
             self._values.append(cell)
