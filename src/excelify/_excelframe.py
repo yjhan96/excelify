@@ -42,7 +42,7 @@ class CellMapping:
         id, col_name, idx = element
         start_row, start_col = self._id_to_start_pos[id]
         col_idx = self._int_to_alpha(self._columns[id][col_name] + start_col)
-        row_idx = idx + start_row + 1
+        row_idx = idx + start_row + 1 + 1
         return f"{col_idx}{row_idx}"
 
 
@@ -157,7 +157,7 @@ class ExcelFrame:
         self,
         path: Path | str,
         *,
-        start_pos: tuple[int, int] = (1, 1),
+        start_pos: tuple[int, int] = (0, 0),
         write_values: bool = True,
     ) -> None:
         # Ideally, we'd like to write a function `of_excel` that will read
@@ -168,23 +168,24 @@ class ExcelFrame:
 
         path = Path(path) if isinstance(path, str) else path
         start_row, start_col = start_pos
-        mapping = CellMapping([(self, (start_row, start_col - 1))])
-        if path.exists():
-            workbook = openpyxl.load_workbook(path)
-        else:
-            workbook = openpyxl.Workbook()
+        mapping = CellMapping([(self, (start_row, start_col))])
+        workbook = openpyxl.Workbook()
         worksheet = workbook.active
         assert worksheet is not None
         for i, col in enumerate(self._ordered_columns):
+            adjusted_start_row, adjusted_start_col = start_row + 1, start_col + 1
             cells = self._input[col]
-            worksheet.cell(row=start_row, column=start_col + i).value = col
+            worksheet.cell(
+                row=adjusted_start_row, column=adjusted_start_col + i
+            ).value = col
             start_offset = 1
             for j, cell in enumerate(cells):
                 formula = cell.to_formula(mapping)
                 if not cell.cell_expr.is_primitive():
                     formula = f"={formula}"
                 worksheet.cell(
-                    row=start_row + j + start_offset, column=start_col + i
+                    row=adjusted_start_row + j + start_offset,
+                    column=adjusted_start_col + i,
                 ).value = formula
 
         workbook.save(path)
