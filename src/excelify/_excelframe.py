@@ -3,47 +3,18 @@ from __future__ import annotations
 import copy
 import uuid
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence, overload
+from typing import Iterable, Mapping, overload
 
 import openpyxl
 
 from excelify._cell import Cell
 from excelify._cell_expr import CellExpr, Constant, Empty
+from excelify._cell_mapping import CellMapping
 from excelify._column import Column
 from excelify._element import Element
 from excelify._expr import Expr
 from excelify._html import NotebookFormatter
 from excelify._types import RawInput
-
-
-class CellMapping:
-    def __init__(self, dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]]):
-        self._id_to_start_pos = {df.id: start_pos for df, start_pos in dfs}
-        self._columns = {
-            df.id: {c: i for i, c in enumerate(df.columns)} for df, _ in dfs
-        }
-
-    def _int_to_alpha(self, idx: int) -> str:
-        num_alphabets = 26
-
-        if idx == 0:
-            return "A"
-        result = []
-        while idx > 0:
-            rem = idx % num_alphabets
-            if len(result) == 0:
-                result.append(chr(ord("A") + rem))
-            else:
-                result.append(chr(ord("A") + rem - 1))
-            idx = idx // num_alphabets
-        return "".join(reversed(result))
-
-    def __getitem__(self, element: Element) -> str:
-        id, col_name, idx = element
-        start_row, start_col = self._id_to_start_pos[id]
-        col_idx = self._int_to_alpha(self._columns[id][col_name] + start_col)
-        row_idx = idx + start_row + 1 + 1
-        return f"{col_idx}{row_idx}"
 
 
 def _topological_sort(cells: list[Cell]) -> list[Cell]:
@@ -282,48 +253,23 @@ class ExcelFrame:
     def to_json(
         self, *, include_header: bool = False, start_pos: tuple[int, int] = (0, 0)
     ):
+        from excelify._display import _df_to_json
+
         table = []
         start_row, start_col = start_pos
         if include_header:
             start_row = start_row + 1
         cell_mapping = CellMapping([(self, (start_row, start_col))])
-
-        col_to_offset = {col: i for i, col in enumerate(self.columns)}
-        evaluated_df = self.evaluate()
-        for col_name in self.columns:
-            formula_column = self._input[col_name]
-            value_column = evaluated_df[col_name]
-            curr_column: list
-            if include_header:
-                curr_column = [
-                    {
-                        "formula": col_name,
-                        "value": col_name,
-                        "depIndices": [],
-                        "is_editable": False,
-                    }
-                ]
-            else:
-                curr_column = []
-            for formula_cell, value_cell in zip(
-                formula_column, value_column, strict=True
-            ):
-                deps = formula_cell.dependencies
-                dep_indices = []
-                for dep in deps:
-                    _, dep_col_name, dep_idx = dep.element
-                    dep_indices.append(
-                        (start_row + dep_idx, start_col + col_to_offset[dep_col_name])
-                    )
-                data = {
-                    "formula": formula_cell.to_formula(cell_mapping),
-                    "value": value_cell.to_formula(cell_mapping),
-                    "depIndices": dep_indices,
-                    "is_editable": formula_cell.is_editable,
-                }
-                curr_column.append(data)
-            table.append(curr_column)
-        return {"table": table}
+        dfs_start_positions = {self.id: (start_row, start_col)}
+        dfs_col_to_offset = {self.id: {col: i for i, col in enumerate(self.columns)}}
+        table = _df_to_json(
+            self,
+            cell_mapping=cell_mapping,
+            dfs_start_positions=dfs_start_positions,
+            dfs_col_to_offset=dfs_col_to_offset,
+            include_header=include_header,
+        )
+        return table
 
 
 def concat(dfs: Iterable[ExcelFrame]) -> ExcelFrame:
