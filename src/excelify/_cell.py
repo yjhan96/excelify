@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from typing import TYPE_CHECKING, Any, Mapping
 
 from excelify._cell_expr import CellExpr, Constant
@@ -8,6 +7,15 @@ from excelify._types import RawInput
 
 if TYPE_CHECKING:
     from excelify._excelframe import CellMapping, Element
+    from excelify._styler import Styler
+
+
+def _is_float(s: str) -> bool:
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
 
 
 class Cell:
@@ -28,8 +36,15 @@ class Cell:
         self._is_editable = is_editable
         self._last_value = None
 
-    def to_formula(self, mapping: CellMapping) -> str:
-        return self.cell_expr.to_formula(mapping)
+    def to_formula(self, mapping: CellMapping, style: Styler | None = None) -> str:
+        value = self.cell_expr.to_formula(mapping)
+        if _is_float(value):
+            value = f"{float(value):,.2f}"
+
+        if style is not None:
+            return style.apply_value(self, value)
+        else:
+            return value
 
     @property
     def element(self) -> Element:

@@ -64,7 +64,7 @@ def _df_to_json(
     include_header: bool,
 ) -> list[list[dict]]:
     sheet = []
-    evaluated_df = df.evaluate()
+    evaluated_df = df.evaluate(inherit_style=True)
     for col_name in df.columns:
         formula_column = df[col_name]
         value_column = evaluated_df[col_name]
@@ -96,7 +96,7 @@ def _df_to_json(
             curr_column.append(
                 {
                     "formula": formula_cell.to_formula(cell_mapping),
-                    "value": value_cell.to_formula(cell_mapping),
+                    "value": value_cell.to_formula(cell_mapping, evaluated_df.style),
                     "depIndices": dep_indices,
                     "is_editable": formula_cell.is_editable,
                 }

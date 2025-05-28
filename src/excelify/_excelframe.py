@@ -14,6 +14,7 @@ from excelify._column import Column
 from excelify._element import Element
 from excelify._expr import Expr
 from excelify._html import NotebookFormatter
+from excelify._styler import Styler
 from excelify._types import RawInput
 
 
@@ -40,12 +41,13 @@ def _topological_sort(cells: list[Cell]) -> list[Cell]:
 class ExcelFrame:
     # TODO: Ideally, I'd like potentially multiple constructors implemented
     # separately, but there's no clean way to do this in Python. If I re-implement
-    # the backend in Rust, that should be doable.
+    # the backend in C++, that should be doable.
     def __init__(
         self,
         input: Mapping[str, Iterable[RawInput | Cell | CellExpr]],
         *,
         ordered_columns: list[str] | None = None,
+        styler: Styler | None = None,
     ):
         self._id = uuid.uuid4()
         prev_cells = self._get_cell_elements(input)
@@ -62,6 +64,14 @@ class ExcelFrame:
             self._ordered_columns = copy.copy(ordered_columns)
         else:
             self._ordered_columns = list(self._input.keys())
+        if styler:
+            self._styler = styler
+        else:
+            self._styler = Styler()
+
+    @property
+    def style(self) -> Styler:
+        return self._styler
 
     def _get_cell_elements(
         self,
@@ -192,7 +202,7 @@ class ExcelFrame:
                 copy._ordered_columns.append(col_name)
         return copy
 
-    def evaluate(self) -> ExcelFrame:
+    def evaluate(self, inherit_style: bool = False) -> ExcelFrame:
         cells = [cell for cells in self._input.values() for cell in cells]
 
         sorted_cells = _topological_sort(cells)
@@ -215,7 +225,8 @@ class ExcelFrame:
                     for idx, value in enumerate(values)
                 ]
                 for col_name, values in self._input.items()
-            }
+            },
+            styler=self._styler if inherit_style else None,
         )
 
     def transpose(
