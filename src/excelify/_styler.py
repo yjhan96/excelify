@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections import defaultdict
+from dataclasses import dataclass
 from enum import Enum
 from typing import NamedTuple, Self, Sequence
 
@@ -20,7 +22,7 @@ def _format(formatter: Formatter, value: str) -> str:
         case Formatter.CURRENCY:
             return f"${value}"
         case Formatter.PERCENT:
-            return f"{float(value) * 100:.2f}%"
+            return f"{float(value) * 100:.0f}%"
         case _:
             raise ValueError("Impossible")
 
@@ -44,9 +46,19 @@ class Apply(NamedTuple):
     predicate: Predicate
 
 
+@dataclass
+class ColumnStyle:
+    col_width: str = "80px"
+
+
+def _default_column_style():
+    return ColumnStyle()
+
+
 class Styler:
     def __init__(self) -> None:
         self.conditions: list[Apply] = []
+        self._column_style: dict[str, ColumnStyle] = defaultdict(_default_column_style)
 
     def fmt_integer(self, columns: Sequence[str] | None = None) -> Self:
         if columns is not None:
@@ -63,8 +75,18 @@ class Styler:
             self.conditions.append(Apply(Formatter.PERCENT, MatchesColumn(columns)))
         return self
 
+    def cols_width(self, cases: dict[str, str] | None = None) -> Self:
+        if cases is not None:
+            for col_name, width_value in cases.items():
+                self._column_style[col_name].col_width = width_value
+        return self
+
     def apply_value(self, cell: Cell, value: str) -> str:
         for formatter, predicate in self.conditions:
             if predicate(cell):
                 value = _format(formatter, value)
         return value
+
+    @property
+    def column_style(self) -> dict[str, ColumnStyle]:
+        return self._column_style

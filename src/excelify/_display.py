@@ -55,6 +55,38 @@ def _get_dfs_col_to_offset(
     return {df.id: {col: i for i, col in enumerate(df.columns)} for df, _ in dfs}
 
 
+def _get_df_col_style_json(
+    df: ExcelFrame, *, start_position: tuple[int, int]
+) -> dict[int, str]:
+    col_style = {}
+    _, start_col = start_position
+    for idx, col_name in enumerate(df.columns):
+        col_style[start_col + idx] = df.style.column_style[col_name].col_width
+    return col_style
+
+
+def _get_dfs_col_style_json(
+    dfs: Sequence[ExcelFrame],
+    *,
+    dfs_start_positions: Mapping[uuid.UUID, tuple[int, int]],
+):
+    combined_col_style = {}
+    for df in dfs:
+        col_style = _get_df_col_style_json(
+            df, start_position=dfs_start_positions[df.id]
+        )
+        for col_idx, cell_width in col_style.items():
+            if col_idx in combined_col_style:
+                if combined_col_style[col_idx] != cell_width:
+                    raise ValueError(
+                        f"Inconsistent cell width for column index {col_idx}: "
+                        f"{cell_width} vs. {combined_col_style[col_idx]}"
+                    )
+            else:
+                combined_col_style[col_idx] = cell_width
+    return combined_col_style
+
+
 def _df_to_json(
     df: ExcelFrame,
     *,
@@ -63,7 +95,7 @@ def _df_to_json(
     dfs_col_to_offset: Mapping[uuid.UUID, Mapping[str, int]],
     include_header: bool,
 ) -> list[list[dict]]:
-    sheet = []
+    table = []
     evaluated_df = df.evaluate(inherit_style=True)
     for col_name in df.columns:
         formula_column = df[col_name]
@@ -99,10 +131,13 @@ def _df_to_json(
                     "value": value_cell.to_formula(cell_mapping, evaluated_df.style),
                     "depIndices": dep_indices,
                     "is_editable": formula_cell.is_editable,
+                    "cellWidth": df.style.column_style[
+                        formula_cell.element.col_name
+                    ].col_width,
                 }
             )
-        sheet.append(curr_column)
-    return sheet
+        table.append(curr_column)
+    return table
 
 
 def to_json(
@@ -124,4 +159,8 @@ def to_json(
         )
         for df, _ in dfs
     ]
-    return sheets
+    col_styles = _get_dfs_col_style_json(
+        [df for df, _ in dfs],
+        dfs_start_positions=dfs_start_positions,
+    )
+    return {"tables": sheets, "colStyles": col_styles}
