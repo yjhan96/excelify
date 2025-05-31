@@ -14,14 +14,19 @@ if TYPE_CHECKING:
 
 
 DATA_FILE = ".excelify-data/data.pickle"
+DFS_TO_DISPLAY: Sequence[tuple[ExcelFrame, tuple[int, int]]] | None = None
 
 
-def display(dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]]):
-    data_path = Path(DATA_FILE)
-    data_path.parent.mkdir(exist_ok=True)
+def display(dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]], to_disk: bool = False):
+    global DFS_TO_DISPLAY
+    DFS_TO_DISPLAY = dfs
 
-    with data_path.open("wb") as f:
-        pickle.dump(dfs, f)
+    if to_disk:
+        data_path = Path(DATA_FILE)
+        data_path.parent.mkdir(exist_ok=True)
+
+        with data_path.open("wb") as f:
+            pickle.dump(dfs, f)
 
 
 def to_excel(dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]], path: Path) -> None:

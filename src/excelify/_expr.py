@@ -269,7 +269,7 @@ class PowCol(Expr):
 
 
 class Map(Expr):
-    def __init__(self, fn: Callable[[int], CellExpr | RawInput]):
+    def __init__(self, fn: Callable[[int], CellExpr | RawInput | Expr]):
         super().__init__()
         self._fn = fn
 
