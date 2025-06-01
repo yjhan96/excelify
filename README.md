@@ -14,6 +14,21 @@ df = el.ExcelFrame.empty(
     height=3,
 )
 ```
+Printing `df` will show the following:
+```pycon
+>>> df
+shape: (3, 4)
++---+----------+----------------+-------------------+----------------+
+|   | year (A) | boy_amount (B) | annual_return (C) | eoy_amount (D) |
++---+----------+----------------+-------------------+----------------+
+| 1 |          |                |                   |                |
+| 2 |          |                |                   |                |
+| 3 |          |                |                   |                |
++---+----------+----------------+-------------------+----------------+
+```
+
+The letters A, B, C, D,... in each column after the column name represents
+the column index, similar to Excel.
 
 Excelify has a Polars-like API that lets you define the formula for all the
 cells in a given column. For example, we can define static integer value
@@ -65,7 +80,6 @@ df = df.with_columns(
 If you print `df`, you'll get the following:
 ```pycon
 >>> print(df)
-
 shape: (3, 4)
 +---+----------+----------------+-------------------+-------------------+
 |   | year (A) | boy_amount (B) | annual_return (C) |  eoy_amount (D)   |
@@ -82,7 +96,6 @@ where each cell will store the computed value of the formula in `df`:
 
 ```pycon
 >>> print(df.evaluate())
-
 shape: (3, 4)
 +---+----------+----------------+-------------------+----------------+
 |   | year (A) | boy_amount (B) | annual_return (C) | eoy_amount (D) |

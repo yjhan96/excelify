@@ -54,6 +54,13 @@ class Expr(ABC):
         assert isinstance(other, Expr)
         return MultCol(self, other)
 
+    def __rmul__(self, other) -> Expr:
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return MultCol(other, self)
+
     def __add__(self, other) -> Expr:
         if isinstance(other, int) or isinstance(other, float):
             other = ConstantExpr(other)
@@ -62,7 +69,11 @@ class Expr(ABC):
         return AddCol(self, other)
 
     def __radd__(self, other) -> Expr:
-        return ConstantExpr(other) + self
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return AddCol(other, self)
 
     def __truediv__(self, other) -> Expr:
         if isinstance(other, int) or isinstance(other, float):
@@ -70,6 +81,13 @@ class Expr(ABC):
 
         assert isinstance(other, Expr)
         return DivCol(self, other)
+
+    def __rtruediv__(self, other) -> Expr:
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return DivCol(other, self)
 
     def __sub__(self, other) -> Expr:
         if isinstance(other, int) or isinstance(other, float):

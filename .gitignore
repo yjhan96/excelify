@@ -11,3 +11,6 @@ wheels/
 
 # checkpoints
 .ipynb_checkpoints
+
+# mkdocs sites
+site/
