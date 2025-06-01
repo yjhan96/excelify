@@ -15,6 +15,7 @@ from excelify._expr import (
     average,
     col,
     lit,
+    map,
     sum,
 )
 
@@ -39,6 +40,7 @@ __all__ = [
     "Sub",
     "SingleCellExpr",
     "Map",
+    "map",
     "concat",
     "lit",
     "ColumnAutocompleter",

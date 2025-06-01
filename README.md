@@ -31,15 +31,17 @@ lazily, just like Excel spreadsheets.
 For example, suppose you'd like to define annual return to be 10% every year.
 You can either use above `el.lit` function, or you can define a static value on
 the first row cell and make subsequent rows refer to the previous row's value
-using `el.Map` and `el.col().prev(1)`:
+using `el.map` and `el.col().prev(1)`:
 
 ```python
+def annual_return_formula(idx: int):
+    if idx == 0:
+        return 0.10
+    else:
+        return el.col("annual_return").prev(1)
+
 df = df.with_columns(
-    el.Map(
-        lambda idx: 0.10
-        if idx == 0
-        else el.col("annual_return").prev(1)
-    ).alias("annual_return")
+    el.map(annual_return_formula).alias("annual_return")
 )
 ```
 This way, you can edit only the first row cell of `annual_return` to change the
@@ -50,7 +52,8 @@ year as follows:
 
 ```python
 df = df.with_columns(
-    el.Map(
+    el.map(
+        # You can also use lambda expression to make it more concise.
         lambda idx: 100.0
         if idx == 0
         else el.col("eoy_amount").prev(1)
@@ -67,9 +70,9 @@ shape: (3, 4)
 +---+----------+----------------+-------------------+-------------------+
 |   | year (A) | boy_amount (B) | annual_return (C) |  eoy_amount (D)   |
 +---+----------+----------------+-------------------+-------------------+
-| 1 |   0.00   |     100.00     |       0.10        | (B1 * (C1 + 1.0)) |
-| 2 |   1.00   |       D1       |        C1         | (B2 * (C2 + 1.0)) |
-| 3 |   2.00   |       D2       |        C2         | (B3 * (C3 + 1.0)) |
+| 1 |   0.00   |     100.00     |       0.10        | (B1 * (1.0 + C1)) |
+| 2 |   1.00   |       D1       |        C1         | (B2 * (1.0 + C2)) |
+| 3 |   2.00   |       D2       |        C2         | (B3 * (1.0 + C3)) |
 +---+----------+----------------+-------------------+-------------------+
 ```
 

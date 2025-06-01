@@ -62,7 +62,7 @@ class Expr(ABC):
         return AddCol(self, other)
 
     def __radd__(self, other) -> Expr:
-        return self + other
+        return ConstantExpr(other) + self
 
     def __truediv__(self, other) -> Expr:
         if isinstance(other, int) or isinstance(other, float):
@@ -284,6 +284,10 @@ class Map(Expr):
 
     def _fallback_repr(self) -> str:
         raise ValueError(f"Please provide a name of the map column!: {self._fn=}")
+
+
+def map(fn: Callable[[int], CellExpr | RawInput | Expr]):
+    return Map(fn)
 
 
 class SumCol(Expr):
