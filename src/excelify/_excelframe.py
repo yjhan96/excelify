@@ -1,9 +1,11 @@
+"""ExcelFrame and functions applied to it."""
+
 from __future__ import annotations
 
 import copy
 import uuid
 from pathlib import Path
-from typing import Iterable, Mapping, overload
+from typing import Any, Iterable, Mapping, Sequence, overload
 
 import openpyxl
 from tabulate import tabulate
@@ -12,6 +14,7 @@ from excelify._cell import Cell
 from excelify._cell_expr import CellExpr, Constant, Empty
 from excelify._cell_mapping import CellMapping, int_to_alpha
 from excelify._column import Column
+from excelify._display import _df_to_json
 from excelify._element import Element
 from excelify._expr import Expr
 from excelify._html import NotebookFormatter
@@ -40,6 +43,45 @@ def _topological_sort(cells: list[Cell]) -> list[Cell]:
 
 
 class ExcelFrame:
+    """DataFrame-like object that allows referencing other cell's values lazily
+    like an Excel spreadsheet.
+
+    Example:
+        ```python
+        >>> import excelify as el
+        >>> df = el.ExcelFrame.empty(columns=["x", "y"], height=2)
+        >>> df
+        shape: (2, 2)
+        +---+-------+-------+
+        |   | x (A) | y (B) |
+        +---+-------+-------+
+        | 1 |       |       |
+        | 2 |       |       |
+        +---+-------+-------+
+        >>> df = df.with_columns(
+        ...     el.lit([0, 1]).alias("x"),
+        ...     el.col("x").alias("y"),
+        ... )
+        >>> df
+        shape: (2, 2)
+        +---+-------+-------+
+        |   | x (A) | y (B) |
+        +---+-------+-------+
+        | 1 | 0.00  |  A1   |
+        | 2 | 1.00  |  A2   |
+        +---+-------+-------+
+        >>> df.evaluate()
+        shape: (2, 2)
+        +---+-------+-------+
+        |   | x (A) | y (B) |
+        +---+-------+-------+
+        | 1 | 0.00  | 0.00  |
+        | 2 | 1.00  | 1.00  |
+        +---+-------+-------+
+
+        ```
+    """
+
     # TODO: Ideally, I'd like potentially multiple constructors implemented
     # separately, but there's no clean way to do this in Python. If I re-implement
     # the backend in C++, that should be doable.
@@ -47,7 +89,7 @@ class ExcelFrame:
         self,
         input: Mapping[str, Iterable[RawInput | Cell | CellExpr]],
         *,
-        ordered_columns: list[str] | None = None,
+        ordered_columns: Sequence[str] | None = None,
         styler: Styler | None = None,
     ):
         self._id = uuid.uuid4()
@@ -62,7 +104,7 @@ class ExcelFrame:
         self._update_self_refs(prev_refs)
         self._ordered_columns: list[str]
         if ordered_columns is not None:
-            self._ordered_columns = copy.copy(ordered_columns)
+            self._ordered_columns = copy.copy(list(ordered_columns))
         else:
             self._ordered_columns = list(self._input.keys())
         if styler:
@@ -91,7 +133,16 @@ class ExcelFrame:
                 cell.update_cell_refs(prev_refs)
 
     @classmethod
-    def empty(cls, *, columns: list[str], height: int) -> ExcelFrame:
+    def empty(cls, *, columns: Sequence[str], height: int) -> ExcelFrame:
+        """Creates an empty table with given columns and height.
+
+        Arguments:
+            columns: list of columns
+            height: height of the table
+
+        Returns:
+            An empty ExcelFrame
+        """
         input = {col_name: [Empty() for _ in range(height)] for col_name in columns}
         return ExcelFrame(input, ordered_columns=columns)
 
@@ -112,20 +163,24 @@ class ExcelFrame:
 
     @property
     def height(self) -> int:
+        """Height of the table."""
         if self.width == 0:
             return 0
         return len(next(iter(self._input.values())))
 
     @property
     def width(self) -> int:
+        """Width of the table."""
         return len(self._input)
 
     @property
     def shape(self) -> tuple[int, int]:
+        """Shape of the table."""
         return (self.height, self.width)
 
     @property
     def columns(self) -> list[str]:
+        """List of column names in order."""
         return self._ordered_columns
 
     @property
@@ -140,14 +195,17 @@ class ExcelFrame:
         path: Path | str,
         *,
         start_pos: tuple[int, int] = (0, 0),
-        write_values: bool = True,
     ) -> None:
-        # Ideally, we'd like to write a function `of_excel` that will read
-        # an excel file and create an ExcelFrame. However, this is slightly
-        # nontrivial as we need to parse the formula and rewire the cells
-        # in Python. Even though this isn't impossible, we defer it for now
-        # and write two excel files, one with formulas and one wih values only.
+        """Writes the ExcelFrame to `path` in an .xlsx format.
 
+        Arguments:
+            path: Path to write an .xlsx file to
+            start_pos: Starting position of the table. It represents the
+                table's upper left cell position.
+
+        Returns:
+            None, but the file will be written to the `path`.
+        """
         path = Path(path) if isinstance(path, str) else path
         start_row, start_col = start_pos
         mapping = CellMapping([(self, (start_row, start_col))])
@@ -172,19 +230,42 @@ class ExcelFrame:
 
         workbook.save(path)
 
-        if write_values:
-            file_name = path.name
-            value_file_path = path.parent / (
-                file_name.removesuffix(".xlsx") + "_value.xlsx"
-            )
-            self.evaluate().to_excel(
-                value_file_path, start_pos=start_pos, write_values=False
-            )
-
     def _copy(self) -> ExcelFrame:
         return ExcelFrame(self._input, ordered_columns=self._ordered_columns)
 
     def with_columns(self, *exprs: Expr) -> ExcelFrame:
+        """Adds or modifies the expression of the column to the table and returns a new ExcelFrame.
+
+        Example:
+            ```pycon
+            >>> import excelify as el
+            >>> df = el.ExcelFrame({"x": [1, 2]})
+            >>> df = df.with_columns((el.col("x") * 2).alias("x_times_two"))
+            >>> df = df.with_columns(el.lit([0, 0]).alias("cumulative_x_sum"))
+            >>> df = df.with_columns(
+            ...     el.map(
+            ...         lambda idx: el.col("x")
+            ...         if idx == 0
+            ...         else el.col("cumulative_x_sum").prev(1) + el.col("x")
+            ...     ).alias("cumulative_x_sum")
+            ... )
+            >>> df
+            shape: (2, 3)
+            +---+-------+-----------------+----------------------+
+            |   | x (A) | x_times_two (B) | cumulative_x_sum (C) |
+            +---+-------+-----------------+----------------------+
+            | 1 | 1.00  |    (A1 * 2)     |          A1          |
+            | 2 | 2.00  |    (A2 * 2)     |      (C1 + A2)       |
+            +---+-------+-----------------+----------------------+
+
+            ```
+
+        Arguments:
+            *exprs: expressions to add to the ExcelFrame
+
+        Returns:
+            An ExcelFrame with added/updated columns based on the passed expressions.
+        """
         copy = self._copy()
         height = copy.height
         for expr in exprs:
@@ -204,6 +285,34 @@ class ExcelFrame:
         return copy
 
     def evaluate(self, inherit_style: bool = False) -> ExcelFrame:
+        """Evaluate the table and return a new table with numerical values only.
+
+        Example:
+            ```pycon
+            >>> import excelify as el
+            >>> df = el.ExcelFrame.empty(columns=["x", "x_times_two"], height=2)
+            >>> df = df.with_columns(
+            ...         el.lit([1, 2]).alias("x"),
+            ...         (el.col("x") * 2).alias("x_times_two"),
+            ...     )
+            >>> df.evaluate()
+            shape: (2, 2)
+            +---+-------+-----------------+
+            |   | x (A) | x_times_two (B) |
+            +---+-------+-----------------+
+            | 1 | 1.00  |      2.00       |
+            | 2 | 2.00  |      4.00       |
+            +---+-------+-----------------+
+
+            ```
+
+        Arguments:
+            inherit_style: If True, the returned table will also inherit the style
+                of the original table.
+
+        Returns:
+            A new ExcelFrame where each cell represents a computed value.
+        """
         cells = [cell for cells in self._input.values() for cell in cells]
 
         sorted_cells = _topological_sort(cells)
@@ -237,6 +346,41 @@ class ExcelFrame:
         header_name: str = "column",
         column_names: Iterable[str] | None = None,
     ) -> ExcelFrame:
+        """Transpose the table.
+
+        Example:
+            ```pycon
+            >>> import excelify as el
+            >>> df = el.ExcelFrame({"x": [1, 2], "y": [3, 4]})
+            >>> df = df.with_columns((el.col("x") + el.col("y")).alias("x_plus_y"))
+            >>> df
+            shape: (2, 3)
+            +---+-------+-------+--------------+
+            |   | x (A) | y (B) | x_plus_y (C) |
+            +---+-------+-------+--------------+
+            | 1 | 1.00  | 3.00  |  (A1 + B1)   |
+            | 2 | 2.00  | 4.00  |  (A2 + B2)   |
+            +---+-------+-------+--------------+
+            >>> df.transpose(include_header=True)
+            shape: (3, 3)
+            +---+------------+--------------+--------------+
+            |   | column (A) | column_0 (B) | column_1 (C) |
+            +---+------------+--------------+--------------+
+            | 1 |     x      |     1.00     |     2.00     |
+            | 2 |     y      |     3.00     |     4.00     |
+            | 3 |  x_plus_y  |  (B1 + B2)   |  (C1 + C2)   |
+            +---+------------+--------------+--------------+
+
+            ```
+
+        Arguments:
+            include_header: Add header as a separate column if set to True.
+            header_name: Name of the header column if `include_header` is set to True.
+            column_names: Name of the new ExcelFrame's columns.
+
+        Returns:
+            A transposed ExcelFrame
+        """
         copy = self._copy()
         columns = []
         if include_header:
@@ -256,6 +400,29 @@ class ExcelFrame:
         return ExcelFrame(dict(columns))
 
     def select(self, columns: list[str]) -> ExcelFrame:
+        """Select a list of columns. It can also be used to reorder the columns.
+
+        Example:
+            ```pycon
+            >>> import excelify as el
+            >>> df = el.ExcelFrame({"x": [1, 2], "y": [4, 5]})
+            >>> df = df.with_columns((el.col("x") + el.col("y")).alias("z"))
+            >>> df.select(["y", "x", "z"])
+            shape: (2, 3)
+            +---+-------+-------+-----------+
+            |   | y (A) | x (B) |   z (C)   |
+            +---+-------+-------+-----------+
+            | 1 | 4.00  | 1.00  | (B1 + A1) |
+            | 2 | 5.00  | 2.00  | (B2 + A2) |
+            +---+-------+-------+-----------+
+            >>> df.select(["x", "z"])
+            Traceback (most recent call last):
+                ...
+            KeyError: 'y'
+
+            ```
+        """
+        # TODO: Validate early on whether dropping certain column is okay or not.
         res = self._copy()
         res._ordered_columns = copy.copy(columns)
         # Update input by only taking the data specified in the column.
@@ -264,9 +431,18 @@ class ExcelFrame:
 
     def to_json(
         self, *, include_header: bool = False, start_pos: tuple[int, int] = (0, 0)
-    ):
-        from excelify._display import _df_to_json
+    ) -> Any:
+        """Returns a JSON that represents the ExcelFrame table. excelify-app
+        uses it to get the JSON-formatted state of the ExcelFrame table.
 
+        Arguments:
+            include_header: Include header in the beginning of the row if set to True
+            start_pos: Starting position of the table. It represents the
+                table's upper left cell position.
+
+        Returns:
+            a dict that represents JSON.
+        """
         table = []
         start_row, start_col = start_pos
         if include_header:
@@ -297,11 +473,47 @@ class ExcelFrame:
         df_str = self.as_str()
         return f"""
 {shape_str}
-{df_str}
-"""
+{df_str}""".strip()
 
 
 def concat(dfs: Iterable[ExcelFrame]) -> ExcelFrame:
+    """Concatenates ExcelFrames along the rows into one. The cell references across
+    the ExcelFrames will be converted to refer to cells within the outputted
+    ExcelFrame. Cell reference outside the given ExcelFrames will still be kept as is.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df1 = el.ExcelFrame.empty(columns=["x", "y"], height=2)
+        >>> df1 = df1.with_columns(
+        ...     el.lit([1, 2]).alias("x"),
+        ...     el.lit([3, 4]).alias("y"),
+        ... )
+        >>> df2 = el.ExcelFrame.empty(columns=["x", "y"], height=2)
+        >>> df2 = df2.with_columns(
+        ...     el.col("x", from_=df1).alias("x"),
+        ...     el.col("y", from_=df1).alias("y"),
+        ... )
+        >>> el.concat([df1, df2])
+        shape: (4, 2)
+        +---+-------+-------+
+        |   | x (A) | y (B) |
+        +---+-------+-------+
+        | 1 | 1.00  | 3.00  |
+        | 2 | 2.00  | 4.00  |
+        | 3 |  A1   |  B1   |
+        | 4 |  A2   |  B2   |
+        +---+-------+-------+
+
+        ```
+
+    Arguments:
+        dfs: An iterable of ExcelFrames to concatenate
+
+    Returns:
+        A concatenated ExcelFrame
+
+    """
     input = {}
     for i, df in enumerate(dfs):
         if i == 0:
