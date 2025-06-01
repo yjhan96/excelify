@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Iterable, Mapping, overload
 
 import openpyxl
+from tabulate import tabulate
 
 from excelify._cell import Cell
 from excelify._cell_expr import CellExpr, Constant, Empty
-from excelify._cell_mapping import CellMapping
+from excelify._cell_mapping import CellMapping, int_to_alpha
 from excelify._column import Column
 from excelify._element import Element
 from excelify._expr import Expr
@@ -281,6 +282,23 @@ class ExcelFrame:
             include_header=include_header,
         )
         return table
+
+    def as_str(self) -> str:
+        cell_mapping = CellMapping([(self, (0, 0))])
+        table = [
+            [str(i + 1)] + [cell.to_formula(cell_mapping) for cell in self[i]]
+            for i in range(self.height)
+        ]
+        headers = [f"{col} ({int_to_alpha(i)})" for i, col in enumerate(self.columns)]
+        return tabulate(table, headers=headers, tablefmt="pretty")
+
+    def __repr__(self) -> str:
+        shape_str = f"shape: ({self.height}, {self.width})"
+        df_str = self.as_str()
+        return f"""
+{shape_str}
+{df_str}
+"""
 
 
 def concat(dfs: Iterable[ExcelFrame]) -> ExcelFrame:
