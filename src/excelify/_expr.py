@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable, Self
 
 from excelify._cell import Cell
 from excelify._cell_expr import (
@@ -26,6 +26,32 @@ if TYPE_CHECKING:
 
 
 class Expr(ABC):
+    """An abstract class that represents a column expression. It'll be evaluated
+    across the row when it's applied to the ExcelFrame.
+
+    You can apply arithmetic operations to the expression directly.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df = el.ExcelFrame({"x": [1, 2, 3]})
+        >>> df = df.with_columns(
+        ...     (el.col("x") * el.col("x")).alias("x_squared"),
+        ...     (el.col("x") / 2).alias("x_div_2")
+        ... )
+        >>> df
+        shape: (3, 3)
+        +---+-------+---------------+-------------+
+        |   | x (A) | x_squared (B) | x_div_2 (C) |
+        +---+-------+---------------+-------------+
+        | 1 | 1.00  |   (A1 * A1)   |  (A1 / 2)   |
+        | 2 | 2.00  |   (A2 * A2)   |  (A2 / 2)   |
+        | 3 | 3.00  |   (A3 * A3)   |  (A3 / 2)   |
+        +---+-------+---------------+-------------+
+
+        ```
+    """
+
     def __init__(self):
         self._name = None
 
@@ -43,7 +69,15 @@ class Expr(ABC):
         else:
             return self._fallback_repr()
 
-    def alias(self, name: str) -> Expr:
+    def alias(self, name: str) -> Self:
+        """Name the column for the given expression.
+
+        Arguments:
+            name: Name of the column
+
+        Returns:
+            self with name modified.
+        """
         self._name = name
         return self
 
@@ -174,6 +208,30 @@ class Col(Expr):
 
 
 def col(col_name: str, *, from_: ExcelFrame | None = None, offset: int = 0):
+    """`Expresses a reference to the cell in a specified column.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df = el.ExcelFrame({"x": [1, 2], "y": [3, 4]})
+        >>> df = df.with_columns((el.col("x") + el.col("y")).alias("z"))
+        >>> df
+        shape: (2, 3)
+        +---+-------+-------+-----------+
+        |   | x (A) | y (B) |   z (C)   |
+        +---+-------+-------+-----------+
+        | 1 | 1.00  | 3.00  | (A1 + B1) |
+        | 2 | 2.00  | 4.00  | (A2 + B2) |
+        +---+-------+-------+-----------+
+
+        ```
+
+    Arguments:
+        col_name: Name of the column
+        from_: Which `ExcelFrame` to refer to. If it's None, it'll refer to
+            the column of its own ExcelFrame.
+        offset: Relative row offset to refer to different rows.
+    """
     return Col(col_name, from_=from_, offset=offset)
 
 
@@ -189,7 +247,32 @@ class LitColumn(Expr):
         raise ValueError("Impossible to reach!")
 
 
-def lit(value: Any) -> Expr:
+def lit(value: RawInput | list[RawInput]) -> Expr:
+    """Expresses a constant value across the rows.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df = el.ExcelFrame.empty(columns=["x", "y"], height=2)
+        >>> df = df.with_columns(
+        ...     el.lit(0).alias("x"),
+        ...     el.lit([1, 2]).alias("y")
+        ... )
+        >>> df
+        shape: (2, 2)
+        +---+-------+-------+
+        |   | x (A) | y (B) |
+        +---+-------+-------+
+        | 1 | 0.00  | 1.00  |
+        | 2 | 0.00  | 2.00  |
+        +---+-------+-------+
+
+        ```
+
+    Arguments:
+        value: A constant value to put in the cell. If it's a scalar value,
+            the value will be broadcasted.
+    """
     if isinstance(value, int) or isinstance(value, float):
         return ConstantExpr(value)
     elif isinstance(value, list):
@@ -304,7 +387,34 @@ class Map(Expr):
         raise ValueError(f"Please provide a name of the map column!: {self._fn=}")
 
 
-def map(fn: Callable[[int], CellExpr | RawInput | Expr]):
+def map(fn: Callable[[int], CellExpr | RawInput | Expr]) -> Map:
+    """Creates an expression based on the given function `fn` per row.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df = el.ExcelFrame.empty(columns=["x", "y"], height=2)
+        >>> df = df.with_columns(
+        ...     el.map(lambda idx: idx + 1).alias("x"),
+        ...     el.map(lambda idx: idx * 2).alias("y")
+        ... )
+        >>> df
+        shape: (2, 2)
+        +---+-------+-------+
+        |   | x (A) | y (B) |
+        +---+-------+-------+
+        | 1 | 1.00  | 0.00  |
+        | 2 | 2.00  | 2.00  |
+        +---+-------+-------+
+
+        ```
+    Arguments:
+        fn: A callable that takes row index and returns an expression for
+            the row.
+
+    Returns:
+        A `Map` expression.
+    """
     return Map(fn)
 
 
@@ -324,6 +434,39 @@ class SumCol(Expr):
 
 
 def sum(col_name: str, *, from_: ExcelFrame | None = None):
+    """Create an expression that represents the sum of the column. The value
+    will be broadcasted across the row.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df = el.ExcelFrame({"x": [1, 2, 3]})
+        >>> df = df.with_columns(el.sum("x").alias("x_sum"))
+        >>> df
+        shape: (3, 2)
+        +---+-------+------------+
+        |   | x (A) | x_sum (B)  |
+        +---+-------+------------+
+        | 1 | 1.00  | SUM(A1:A3) |
+        | 2 | 2.00  | SUM(A1:A3) |
+        | 3 | 3.00  | SUM(A1:A3) |
+        +---+-------+------------+
+        >>> df.evaluate()
+        shape: (3, 2)
+        +---+-------+-----------+
+        |   | x (A) | x_sum (B) |
+        +---+-------+-----------+
+        | 1 | 1.00  |   6.00    |
+        | 2 | 2.00  |   6.00    |
+        | 3 | 3.00  |   6.00    |
+        +---+-------+-----------+
+
+        ```
+
+    Arguments:
+        col_name: Column name
+        from_: An ExcelFrame to refer to. If None, it'll refer to itself.
+    """
     return SumCol(col_name, from_=from_)
 
 
@@ -343,4 +486,37 @@ class AverageCol(Expr):
 
 
 def average(col_name: str, *, from_: ExcelFrame | None = None):
+    """Create an expression that represents the average of the column. The value
+    will be broadcasted across the row.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df = el.ExcelFrame({"x": [1, 2, 3]})
+        >>> df = df.with_columns(el.average("x").alias("x_sum"))
+        >>> df
+        shape: (3, 2)
+        +---+-------+----------------+
+        |   | x (A) |   x_sum (B)    |
+        +---+-------+----------------+
+        | 1 | 1.00  | AVERAGE(A1:A3) |
+        | 2 | 2.00  | AVERAGE(A1:A3) |
+        | 3 | 3.00  | AVERAGE(A1:A3) |
+        +---+-------+----------------+
+        >>> df.evaluate()
+        shape: (3, 2)
+        +---+-------+-----------+
+        |   | x (A) | x_sum (B) |
+        +---+-------+-----------+
+        | 1 | 1.00  |   2.00    |
+        | 2 | 2.00  |   2.00    |
+        | 3 | 3.00  |   2.00    |
+        +---+-------+-----------+
+
+        ```
+
+    Arguments:
+        col_name: Column name
+        from_: An ExcelFrame to refer to. If None, it'll refer to itself.
+    """
     return AverageCol(col_name, from_=from_)
