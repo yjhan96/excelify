@@ -12,7 +12,7 @@ from tabulate import tabulate
 
 from excelify._cell import Cell
 from excelify._cell_expr import CellExpr, Constant, Empty
-from excelify._cell_mapping import CellMapping, int_to_alpha
+from excelify._cell_mapping import CellMapping, alpha_to_int, int_to_alpha
 from excelify._column import Column
 from excelify._display import _df_to_json
 from excelify._element import Element
@@ -20,6 +20,7 @@ from excelify._expr import Expr
 from excelify._html import NotebookFormatter
 from excelify._styler import Styler
 from excelify._types import RawInput
+from excelify.formula._parser import create_parser
 
 
 def _topological_sort(cells: list[Cell]) -> list[Cell]:
@@ -189,6 +190,46 @@ class ExcelFrame:
 
     def _repr_html_(self):
         return "".join(NotebookFormatter(self).render())
+
+    @classmethod
+    def of_excel(
+        cls,
+        path: Path | str,
+        *,
+        start_pos: tuple[int, int],
+        dimension: tuple[int, int],
+    ):
+        path = Path(path) if isinstance(path, str) else path
+        workbook = openpyxl.load_workbook(path, read_only=True)
+        # TODO: Pick an appropriate worksheet from an index file instead.
+        worksheet = workbook.active
+        assert worksheet is not None
+        start_row, start_col = start_pos
+        width, height = dimension
+
+        columns = [
+            worksheet[f"{int_to_alpha(col)}{start_row + 1}"].value
+            for col in range(start_col, start_col + width)
+        ]
+        df = cls.empty(columns=columns, height=height)
+
+        def cellpos_to_cellref(column_str, row_idx):
+            col_idx = alpha_to_int(column_str)
+            row_idx = row_idx - 1
+
+            return df[df.columns[col_idx]][row_idx]
+
+        parser = create_parser(cellpos_to_cellref)
+        for row_idx in range(height):
+            for col_idx in range(width):
+                df[df.columns[col_idx]][row_idx].cell_expr = parser.parse(
+                    str(
+                        worksheet.cell(
+                            row=start_row + 2 + row_idx, column=start_col + 1 + col_idx
+                        ).value
+                    )
+                )
+        return df
 
     def to_excel(
         self,
