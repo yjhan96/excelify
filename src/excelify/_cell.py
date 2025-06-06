@@ -36,8 +36,14 @@ class Cell:
         self._is_editable = is_editable
         self._last_value = None
 
-    def to_formula(self, mapping: CellMapping, style: Styler | None = None) -> str:
-        value = self.cell_expr.to_formula(mapping)
+    def to_formula(
+        self,
+        mapping: CellMapping,
+        *,
+        style: Styler | None = None,
+        raise_if_missing: bool = True,
+    ) -> str:
+        value = self.cell_expr.to_formula(mapping, raise_if_missing=raise_if_missing)
         if _is_float(value):
             value = f"{float(value):,.2f}"
 

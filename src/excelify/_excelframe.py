@@ -191,46 +191,6 @@ class ExcelFrame:
     def _repr_html_(self):
         return "".join(NotebookFormatter(self).render())
 
-    @classmethod
-    def of_excel(
-        cls,
-        path: Path | str,
-        *,
-        start_pos: tuple[int, int],
-        dimension: tuple[int, int],
-    ):
-        path = Path(path) if isinstance(path, str) else path
-        workbook = openpyxl.load_workbook(path, read_only=True)
-        # TODO: Pick an appropriate worksheet from an index file instead.
-        worksheet = workbook.active
-        assert worksheet is not None
-        start_row, start_col = start_pos
-        width, height = dimension
-
-        columns = [
-            worksheet[f"{int_to_alpha(col)}{start_row + 1}"].value
-            for col in range(start_col, start_col + width)
-        ]
-        df = cls.empty(columns=columns, height=height)
-
-        def cellpos_to_cellref(column_str, row_idx):
-            col_idx = alpha_to_int(column_str)
-            row_idx = row_idx - 1
-
-            return df[df.columns[col_idx]][row_idx]
-
-        parser = create_parser(cellpos_to_cellref)
-        for row_idx in range(height):
-            for col_idx in range(width):
-                df[df.columns[col_idx]][row_idx].cell_expr = parser.parse(
-                    str(
-                        worksheet.cell(
-                            row=start_row + 2 + row_idx, column=start_col + 1 + col_idx
-                        ).value
-                    )
-                )
-        return df
-
     def to_excel(
         self,
         path: Path | str,
@@ -503,7 +463,11 @@ class ExcelFrame:
     def as_str(self) -> str:
         cell_mapping = CellMapping([(self, (0, 0))])
         table = [
-            [str(i + 1)] + [cell.to_formula(cell_mapping) for cell in self[i]]
+            [str(i + 1)]
+            + [
+                cell.to_formula(cell_mapping, raise_if_missing=False)
+                for cell in self[i]
+            ]
             for i in range(self.height)
         ]
         headers = [f"{col} ({int_to_alpha(i)})" for i, col in enumerate(self.columns)]
@@ -567,3 +531,39 @@ def concat(dfs: Iterable[ExcelFrame]) -> ExcelFrame:
                 input[col].extend(df[col])
 
     return ExcelFrame(input)
+
+
+def of_excel(
+    path: Path | str, *, start_pos: tuple[int, int], dimension: tuple[int, int]
+):
+    path = Path(path) if isinstance(path, str) else path
+    workbook = openpyxl.load_workbook(path, read_only=True)
+    # TODO: Pick an appropriate worksheet from an index file instead.
+    worksheet = workbook.active
+    assert worksheet is not None
+    start_row, start_col = start_pos
+    width, height = dimension
+
+    columns = [
+        worksheet[f"{int_to_alpha(col)}{start_row + 1}"].value
+        for col in range(start_col, start_col + width)
+    ]
+    df = ExcelFrame.empty(columns=columns, height=height)
+
+    def cellpos_to_cellref(column_str, row_idx):
+        col_idx = alpha_to_int(column_str)
+        row_idx = row_idx - 1
+
+        return df[df.columns[col_idx]][row_idx]
+
+    parser = create_parser(cellpos_to_cellref)
+    for row_idx in range(height):
+        for col_idx in range(width):
+            df[df.columns[col_idx]][row_idx].cell_expr = parser.parse(
+                str(
+                    worksheet.cell(
+                        row=start_row + 2 + row_idx, column=start_col + 1 + col_idx
+                    ).value
+                )
+            )
+    return df

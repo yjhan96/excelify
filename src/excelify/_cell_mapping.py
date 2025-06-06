@@ -76,3 +76,11 @@ class CellMapping:
         col_idx = int_to_alpha(self._columns[id][col_name] + start_col)
         row_idx = idx + start_row + 1
         return f"{col_idx}{row_idx}"
+
+    def __contains__(self, element: Element) -> bool:
+        id, col_name, _ = element
+        if id not in self._columns:
+            return False
+        if col_name not in self._columns[id]:
+            return False
+        return True
