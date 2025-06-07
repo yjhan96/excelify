@@ -31,7 +31,7 @@ class TreeToCellExpr(Transformer):
 
     def number(self, n) -> CellExpr:
         (n,) = n
-        return Constant(n)
+        return Constant(float(n))
 
 
 def create_parser(cellpos_to_cellref):
@@ -42,10 +42,10 @@ def create_parser(cellpos_to_cellref):
 
     ?expr: SIGNED_NUMBER -> number
          | "(" expr ")"
-         | expr "+" expr -> plus
-         | expr "-" expr -> minus
          | expr "*" expr -> mult
          | expr "/" expr -> div
+         | expr "+" expr -> plus
+         | expr "-" expr -> minus
          | cellref
          | formulas
 

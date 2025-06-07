@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import json
 import pickle
 import uuid
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Mapping, Sequence
+from typing import TYPE_CHECKING, Callable, Mapping, Sequence
 
 import openpyxl
+from lark import Lark
 
-from excelify._cell_mapping import CellMapping
+from excelify._cell import Cell
+from excelify._cell_mapping import CellMapping, alpha_to_int, int_to_alpha
+from excelify.formula._parser import create_parser
 
 if TYPE_CHECKING:
     from excelify._excelframe import ExcelFrame
@@ -29,7 +34,29 @@ def display(dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]], to_disk: bool = F
             pickle.dump(dfs, f)
 
 
-def to_excel(dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]], path: Path) -> None:
+@dataclass
+class TableConfig:
+    start_row: int
+    start_col: int
+    width: int
+    height: int
+
+    @classmethod
+    def of_json(cls, d_: dict):
+        return cls(
+            start_row=d_["start_row"],
+            start_col=d_["start_col"],
+            width=d_["width"],
+            height=d_["height"],
+        )
+
+
+def to_excel(
+    dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]],
+    path: Path,
+    *,
+    index_path: Path | None = None,
+) -> None:
     path = Path(path) if isinstance(path, str) else path
     mapping = CellMapping(dfs)
     workbook = openpyxl.Workbook()
@@ -37,10 +64,9 @@ def to_excel(dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]], path: Path) -> N
     assert worksheet is not None
 
     for df, (start_row, start_col) in dfs:
-        start_row, start_col = start_row + 1, start_col + 1
         for i, col in enumerate(df.columns):
             cells = df[col]
-            worksheet.cell(row=start_row, column=start_col + i).value = col
+            worksheet.cell(row=start_row, column=start_col + i + 1).value = col
             start_offset = 1
 
             for j, cell in enumerate(cells):
@@ -48,10 +74,103 @@ def to_excel(dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]], path: Path) -> N
                 if not cell.cell_expr.is_primitive():
                     formula = f"={formula}"
                 worksheet.cell(
-                    row=start_row + j + start_offset, column=start_col + i
+                    row=start_row + j + start_offset, column=start_col + i + 1
                 ).value = formula
 
     workbook.save(path)
+
+    if index_path is not None:
+        index_json = [
+            TableConfig(
+                start_row=start_row,
+                start_col=start_col,
+                width=df.width,
+                height=df.height,
+            )
+            for (df, (start_row, start_col)) in dfs
+        ]
+        with Path(index_path).open("w") as f:
+            json.dump([asdict(config) for config in index_json], f, indent=4)
+
+
+def _create_empty_dfs(
+    workbook: openpyxl.Workbook, table_configs: Sequence[TableConfig]
+) -> Sequence[ExcelFrame]:
+    from excelify._excelframe import ExcelFrame
+
+    worksheet = workbook.active
+    assert worksheet is not None
+    df_columns = [
+        [
+            worksheet[f"{int_to_alpha(col)}{config.start_row}"].value
+            for col in range(config.start_col, config.start_col + config.width)
+        ]
+        for config in table_configs
+    ]
+    return [
+        ExcelFrame.empty(columns=columns, height=config.height)
+        for columns, config in zip(df_columns, table_configs, strict=True)
+    ]
+
+
+def _get_cellpos_to_cellref_fn(
+    table_configs: Sequence[TableConfig], dfs: Sequence[ExcelFrame]
+) -> Callable[[str, int], Cell]:
+    def cellpos_to_cellref(column_str: str, row_idx: int):
+        abs_col_idx = alpha_to_int(column_str)
+        abs_row_idx = row_idx
+
+        for df, config in zip(dfs, table_configs, strict=True):
+            rel_col_idx = abs_col_idx - config.start_col
+            rel_row_idx = abs_row_idx - config.start_row - 1
+
+            if (
+                rel_col_idx >= 0
+                and rel_col_idx < df.width
+                and rel_row_idx >= 0
+                and rel_row_idx < df.height
+            ):
+                return df[df.columns[rel_col_idx]][rel_row_idx]
+        raise ValueError(
+            "The following cell position can't be mapped to one of the "
+            f"loaded ExcelFrame's: {column_str}{row_idx}."
+        )
+
+    return cellpos_to_cellref
+
+
+def _populate_df(
+    workbook: openpyxl.Workbook, df: ExcelFrame, config: TableConfig, parser: Lark
+) -> None:
+    worksheet = workbook.active
+    assert worksheet is not None
+    for row_idx in range(config.height):
+        for col_idx in range(config.width):
+            df[df.columns[col_idx]][row_idx].cell_expr = parser.parse(
+                str(
+                    worksheet.cell(
+                        row=config.start_row + 1 + row_idx,
+                        column=config.start_col + 1 + col_idx,
+                    ).value
+                )
+            )
+
+
+def of_excel(*, path: Path | str, index_path: Path | str) -> Sequence[ExcelFrame]:
+    path = Path(path) if isinstance(path, str) else path
+    index_path = Path(index_path) if isinstance(index_path, str) else index_path
+    with index_path.open("r") as f:
+        index_json = json.load(f)
+    table_configs = [TableConfig.of_json(d_) for d_ in index_json]
+    workbook = openpyxl.load_workbook(path, read_only=True)
+    dfs = _create_empty_dfs(workbook, table_configs)
+
+    cellpos_to_cellref = _get_cellpos_to_cellref_fn(table_configs, dfs)
+    parser = create_parser(cellpos_to_cellref)
+
+    for df, config in zip(dfs, table_configs, strict=True):
+        _populate_df(workbook, df, config, parser)
+    return dfs
 
 
 def _get_dfs_col_to_offset(
@@ -133,7 +252,9 @@ def _df_to_json(
             curr_column.append(
                 {
                     "formula": formula_cell.to_formula(cell_mapping),
-                    "value": value_cell.to_formula(cell_mapping, evaluated_df.style),
+                    "value": value_cell.to_formula(
+                        cell_mapping, style=evaluated_df.style
+                    ),
                     "depIndices": dep_indices,
                     "is_editable": formula_cell.is_editable,
                     "cellWidth": df.style.column_style[
