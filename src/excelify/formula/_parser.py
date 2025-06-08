@@ -40,16 +40,22 @@ def create_parser(cellpos_to_cellref):
     ?excel_expr: SIGNED_NUMBER -> number
                | "="expr
 
-    ?expr: SIGNED_NUMBER -> number
-         | "(" expr ")"
-         | expr "*" expr -> mult
-         | expr "/" expr -> div
-         | expr "+" expr -> plus
-         | expr "-" expr -> minus
-         | cellref
-         | formulas
+    ?expr: term
 
-    formulas: "AVERAGE(" cellref ":" cellref ")" -> average_fn
+    ?term: term "+" factor -> plus
+         | term "-" factor -> minus
+         | factor
+
+    ?factor: factor "*" primary -> mult
+           | factor "/" primary -> div
+           | primary
+
+    ?primary: SIGNED_NUMBER -> number
+            | "(" expr ")"
+            | cellref
+            | formulas
+
+    ?formulas: "AVERAGE(" cellref ":" cellref ")" -> average_fn
             | "SUM(" cellref ":" cellref ")" -> sum_fn
 
     cellref: (UCASE_LETTER+)(SIGNED_NUMBER)
