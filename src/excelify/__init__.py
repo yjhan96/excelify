@@ -1,7 +1,7 @@
 from excelify._cell import Cell
 from excelify._cell_expr import Add, CellExpr, CellRef, Constant, Div, Empty, Mult, Sub
 from excelify._column import ColumnAutocompleter
-from excelify._display import display, of_excel, to_excel, to_json
+from excelify._display import display, of_csv, of_excel, to_excel, to_json
 from excelify._excelframe import CellMapping, ExcelFrame, concat
 from excelify._expr import (
     AddCol,
@@ -52,4 +52,5 @@ __all__ = [
     "to_excel",
     "to_json",
     "of_excel",
+    "of_csv",
 ]

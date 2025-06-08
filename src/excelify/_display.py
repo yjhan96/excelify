@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import pickle
 import uuid
@@ -66,7 +67,7 @@ def to_excel(
     for df, (start_row, start_col) in dfs:
         for i, col in enumerate(df.columns):
             cells = df[col]
-            worksheet.cell(row=start_row, column=start_col + i + 1).value = col
+            worksheet.cell(row=start_row + 1, column=start_col + i + 1).value = col
             start_offset = 1
 
             for j, cell in enumerate(cells):
@@ -74,7 +75,7 @@ def to_excel(
                 if not cell.cell_expr.is_primitive():
                     formula = f"={formula}"
                 worksheet.cell(
-                    row=start_row + j + start_offset, column=start_col + i + 1
+                    row=start_row + j + start_offset + 1, column=start_col + i + 1
                 ).value = formula
 
     workbook.save(path)
@@ -102,7 +103,7 @@ def _create_empty_dfs(
     assert worksheet is not None
     df_columns = [
         [
-            worksheet[f"{int_to_alpha(col)}{config.start_row}"].value
+            worksheet[f"{int_to_alpha(col)}{config.start_row + 1}"].value
             for col in range(config.start_col, config.start_col + config.width)
         ]
         for config in table_configs
@@ -118,7 +119,7 @@ def _get_cellpos_to_cellref_fn(
 ) -> Callable[[str, int], Cell]:
     def cellpos_to_cellref(column_str: str, row_idx: int):
         abs_col_idx = alpha_to_int(column_str)
-        abs_row_idx = row_idx
+        abs_row_idx = row_idx - 1
 
         for df, config in zip(dfs, table_configs, strict=True):
             rel_col_idx = abs_col_idx - config.start_col
@@ -149,7 +150,7 @@ def _populate_df(
             df[df.columns[col_idx]][row_idx].cell_expr = parser.parse(
                 str(
                     worksheet.cell(
-                        row=config.start_row + 1 + row_idx,
+                        row=config.start_row + 1 + 1 + row_idx,
                         column=config.start_col + 1 + col_idx,
                     ).value
                 )
@@ -171,6 +172,24 @@ def of_excel(*, path: Path | str, index_path: Path | str) -> Sequence[ExcelFrame
     for df, config in zip(dfs, table_configs, strict=True):
         _populate_df(workbook, df, config, parser)
     return dfs
+
+
+def of_csv(path: Path | str) -> ExcelFrame:
+    from excelify._excelframe import ExcelFrame
+
+    path = Path(path) if isinstance(path, str) else path
+    with path.open("r", newline="") as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames is None:
+            raise ValueError(
+                f"Field names could not be inferred from the csv file {path}"
+            )
+        columns = reader.fieldnames
+        d_ = {col: [] for col in columns}
+        for row in reader:
+            for col in columns:
+                d_[col].append(row[col])
+        return ExcelFrame(d_)
 
 
 def _get_dfs_col_to_offset(

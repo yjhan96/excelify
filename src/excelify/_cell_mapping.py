@@ -74,7 +74,7 @@ class CellMapping:
         id, col_name, idx = element
         start_row, start_col = self._id_to_start_pos[id]
         col_idx = int_to_alpha(self._columns[id][col_name] + start_col)
-        row_idx = idx + start_row + 1
+        row_idx = idx + start_row + 1 + 1
         return f"{col_idx}{row_idx}"
 
     def __contains__(self, element: Element) -> bool:
