@@ -1,6 +1,17 @@
 from lark import Lark, Transformer
 
-from excelify._cell_expr import Add, CellExpr, CellRef, Constant, Div, Mult, Sub
+from excelify._cell import Cell
+from excelify._cell_expr import (
+    Add,
+    AverageCellsRef,
+    CellExpr,
+    CellRef,
+    Constant,
+    Div,
+    Mult,
+    Sub,
+    SumCellsRef,
+)
 
 
 class TreeToCellExpr(Transformer):
@@ -24,10 +35,53 @@ class TreeToCellExpr(Transformer):
         expr1, expr2 = exprs
         return Div(expr1, expr2)
 
-    def cellref(self, args) -> CellExpr:
+    def cellref_expr(self, args) -> CellExpr:
+        (cell_ref,) = args
+        df, col_idx, row_idx = cell_ref
+        return CellRef(df[df.columns[col_idx]][row_idx])
+
+    def cellref(self, args) -> Cell:
         (column_str, row_idx) = args
-        cell_ref = self.cellpos_to_cellref(column_str, int(row_idx))
-        return CellRef(cell_ref)
+        return self.cellpos_to_cellref(column_str, int(row_idx))
+
+    @staticmethod
+    def _verify_agg_fn_range(from_cellref, to_cellref) -> None:
+        from_cell_df, from_col_idx, _ = from_cellref
+        to_cell_df, to_col_idx, _ = to_cellref
+
+        if not (from_cell_df == to_cell_df and from_col_idx == to_col_idx):
+            raise ValueError(
+                "Received different column name for start and end cell. "
+                "Excelfiy currently doesn't support aggregate function "
+                f"across columns. From: {from_cell_df.columns[from_col_idx]}, "
+                f"To:{to_cell_df.columns[to_col_idx]}"
+            )
+
+    def average_fn(self, args) -> CellExpr:
+        (from_cellref, to_cellref) = args
+        TreeToCellExpr._verify_agg_fn_range(from_cellref, to_cellref)
+        from_cell_df, from_col_idx, from_row_idx = from_cellref
+        _, _, to_row_idx = to_cellref
+        from_row_idx = min(from_row_idx, to_row_idx)
+        to_row_idx = max(from_row_idx, to_row_idx)
+        cells = [
+            from_cell_df[from_cell_df.columns[from_col_idx]][row_idx]
+            for row_idx in range(from_row_idx, to_row_idx + 1)
+        ]
+        return AverageCellsRef(cells)
+
+    def sum_fn(self, args) -> CellExpr:
+        (from_cellref, to_cellref) = args
+        TreeToCellExpr._verify_agg_fn_range(from_cellref, to_cellref)
+        from_cell_df, from_col_idx, from_row_idx = from_cellref
+        _, _, to_row_idx = to_cellref
+        from_row_idx = min(from_row_idx, to_row_idx)
+        to_row_idx = max(from_row_idx, to_row_idx)
+        cells = [
+            from_cell_df[from_cell_df.columns[from_col_idx]][row_idx]
+            for row_idx in range(from_row_idx, to_row_idx + 1)
+        ]
+        return SumCellsRef(cells)
 
     def number(self, n) -> CellExpr:
         (n,) = n
@@ -52,7 +106,7 @@ def create_parser(cellpos_to_cellref):
 
     ?primary: SIGNED_NUMBER -> number
             | "(" expr ")"
-            | cellref
+            | cellref -> cellref_expr
             | formulas
 
     ?formulas: "AVERAGE(" cellref ":" cellref ")" -> average_fn

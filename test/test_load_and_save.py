@@ -44,6 +44,41 @@ shape: (3, 3)
     )
 
 
+def test_excel_load_save_agg_fn(tmp_path):
+    df = el.ExcelFrame({"x": [1, 2], "y": [3, 4]})
+    df = df.with_columns(x_sum=el.sum("x"), y_avg=el.average("y"))
+    el.to_excel(
+        [(df, (0, 0))], path=tmp_path / "test.xlsx", index_path=tmp_path / "index.json"
+    )
+    [df_loaded] = el.of_excel(
+        path=tmp_path / "test.xlsx", index_path=tmp_path / "index.json"
+    )
+    assert_str(
+        str(df),
+        """
+shape: (2, 4)
++---+-------+-------+------------+----------------+
+|   | x (A) | y (B) | x_sum (C)  |   y_avg (D)    |
++---+-------+-------+------------+----------------+
+| 1 | 1.00  | 3.00  | SUM(A1:A2) | AVERAGE(B1:B2) |
+| 2 | 2.00  | 4.00  | SUM(A1:A2) | AVERAGE(B1:B2) |
++---+-------+-------+------------+----------------+
+""",
+    )
+    assert_str(
+        str(df_loaded),
+        """
+shape: (2, 4)
++---+-------+-------+------------+----------------+
+|   | x (A) | y (B) | x_sum (C)  |   y_avg (D)    |
++---+-------+-------+------------+----------------+
+| 1 | 1.00  | 3.00  | SUM(A1:A2) | AVERAGE(B1:B2) |
+| 2 | 2.00  | 4.00  | SUM(A1:A2) | AVERAGE(B1:B2) |
++---+-------+-------+------------+----------------+
+""",
+    )
+
+
 def test_of_csv(tmp_path):
     csv_content = """
 x,y,z

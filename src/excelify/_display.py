@@ -126,7 +126,7 @@ def _create_empty_dfs(
 
 def _get_cellpos_to_cellref_fn(
     table_configs: Sequence[TableConfig], dfs: Sequence[ExcelFrame]
-) -> Callable[[str, int], Cell]:
+) -> Callable[[str, int], tuple[ExcelFrame, int, int]]:
     def cellpos_to_cellref(column_str: str, row_idx: int):
         abs_col_idx = alpha_to_int(column_str)
         abs_row_idx = row_idx - 1
@@ -141,7 +141,7 @@ def _get_cellpos_to_cellref_fn(
                 and rel_row_idx >= 0
                 and rel_row_idx < df.height
             ):
-                return df[df.columns[rel_col_idx]][rel_row_idx]
+                return (df, rel_col_idx, rel_row_idx)
         raise ValueError(
             "The following cell position can't be mapped to one of the "
             f"loaded ExcelFrame's: {column_str}{row_idx}."
@@ -163,7 +163,7 @@ def _populate_df(
                         row=config.start_row + 1 + 1 + row_idx,
                         column=config.start_col + 1 + col_idx,
                     ).value
-                )
+                ).upper()
             )
 
 
