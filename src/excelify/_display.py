@@ -58,6 +58,16 @@ def to_excel(
     *,
     index_path: Path | None = None,
 ) -> None:
+    """Writes possibly more than one ExcelFrames to an excel file to a given `path`.
+    Specify `index_path` to write down the location index of the ExcelFrames to use it
+    for loading them from the .xlsx file in the future.
+
+    Arguments:
+        dfs: Sequence of ExcelFrames and its starting positions, zero-indexed.
+        path: Path of an .xlsx file
+        index_path: Path of an index JSON file
+
+    """
     path = Path(path) if isinstance(path, str) else path
     mapping = CellMapping(dfs)
     workbook = openpyxl.Workbook()
@@ -158,6 +168,16 @@ def _populate_df(
 
 
 def of_excel(*, path: Path | str, index_path: Path | str) -> Sequence[ExcelFrame]:
+    """Loads possibly more than one ExcelFrames from an .xlsx file from a given `path`
+    and `index_path`.
+
+    Arguments:
+        path: .xlsx file Path to load from
+        index_path: Index JSON file path that specifies the location of the df's to load.
+
+    Returns:
+        A sequence of ExcelFrame, ordered based on the index path.
+    """
     path = Path(path) if isinstance(path, str) else path
     index_path = Path(index_path) if isinstance(index_path, str) else index_path
     with index_path.open("r") as f:
@@ -175,6 +195,14 @@ def of_excel(*, path: Path | str, index_path: Path | str) -> Sequence[ExcelFrame
 
 
 def of_csv(path: Path | str) -> ExcelFrame:
+    """Loads an ExcelFrame from a csv file.
+
+    Arguments:
+        path: CSV file path
+
+    Returns:
+        An ExcelFrame
+    """
     from excelify._excelframe import ExcelFrame
 
     path = Path(path) if isinstance(path, str) else path

@@ -4,6 +4,7 @@ nav:
   - Getting Started: getting_started.md
   - ExcelFrame: excelframe.md
   - Expressions: expressions.md
+  - Saving & Loading: save_and_load.md
 theme: material
 repo_url: https://github.com/yjhan96/excelify
 
