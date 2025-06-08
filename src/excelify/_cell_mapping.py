@@ -64,17 +64,24 @@ def alpha_to_int(s: str) -> int:
 
 
 class CellMapping:
-    def __init__(self, dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]]):
+    def __init__(
+        self,
+        dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]],
+        header_in_table: bool = True,
+    ):
         self._id_to_start_pos = {df.id: start_pos for df, start_pos in dfs}
         self._columns = {
             df.id: {c: i for i, c in enumerate(df.columns)} for df, _ in dfs
         }
+        self._header_in_table = header_in_table
 
     def __getitem__(self, element: Element) -> str:
         id, col_name, idx = element
         start_row, start_col = self._id_to_start_pos[id]
         col_idx = int_to_alpha(self._columns[id][col_name] + start_col)
-        row_idx = idx + start_row + 1 + 1
+        row_offset = 1 if self._header_in_table else 0
+        # We add 1 at the end because row is 1-indexed.
+        row_idx = idx + start_row + row_offset + 1
         return f"{col_idx}{row_idx}"
 
     def __contains__(self, element: Element) -> bool:

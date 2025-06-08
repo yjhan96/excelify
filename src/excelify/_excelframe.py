@@ -417,9 +417,13 @@ class ExcelFrame:
             | 2 | 5.00  | 2.00  | (B2 + A2) |
             +---+-------+-------+-----------+
             >>> df.select(["x", "z"])
-            Traceback (most recent call last):
-                ...
-            KeyError: 'y'
+            shape: (2, 2)
+            +---+-------+----------------+
+            |   | x (A) |     z (B)      |
+            +---+-------+----------------+
+            | 1 | 1.00  | (A1 + ???:y:0) |
+            | 2 | 2.00  | (A2 + ???:y:1) |
+            +---+-------+----------------+
 
             ```
         """
@@ -461,7 +465,7 @@ class ExcelFrame:
         return table
 
     def as_str(self) -> str:
-        cell_mapping = CellMapping([(self, (0, 0))])
+        cell_mapping = CellMapping([(self, (0, 0))], header_in_table=False)
         table = [
             [str(i + 1)]
             + [
