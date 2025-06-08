@@ -18,6 +18,7 @@ from excelify._expr import (
     lit,
     map,
     sum,
+    cell,
 )
 
 __all__ = [
@@ -53,4 +54,5 @@ __all__ = [
     "to_json",
     "of_excel",
     "of_csv",
+    "cell",
 ]

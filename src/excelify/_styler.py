@@ -20,9 +20,9 @@ def _format(formatter: Formatter, value: str) -> str:
         case Formatter.INTEGER:
             return f"{int(float(value)):,}"
         case Formatter.CURRENCY:
-            return f"${value}"
+            return f"${float(value):,.2f}"
         case Formatter.PERCENT:
-            return f"{float(value) * 100:.0f}%"
+            return f"{float(value) * 100:,.0f}%"
         case _:
             raise ValueError("Impossible")
 
@@ -46,9 +46,12 @@ class Apply(NamedTuple):
     predicate: Predicate
 
 
+DEFAULT_CELL_WIDTH = "80px"
+
+
 @dataclass
 class ColumnStyle:
-    col_width: str = "80px"
+    col_width: str | None = None
 
 
 def _default_column_style():

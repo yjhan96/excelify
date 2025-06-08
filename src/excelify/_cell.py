@@ -10,14 +10,6 @@ if TYPE_CHECKING:
     from excelify._styler import Styler
 
 
-def _is_float(s: str) -> bool:
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
-
-
 class Cell:
     def __init__(
         self,
@@ -44,9 +36,6 @@ class Cell:
         raise_if_missing: bool = True,
     ) -> str:
         value = self.cell_expr.to_formula(mapping, raise_if_missing=raise_if_missing)
-        if _is_float(value):
-            value = f"{float(value):,.2f}"
-
         if style is not None:
             return style.apply_value(self, value)
         else:

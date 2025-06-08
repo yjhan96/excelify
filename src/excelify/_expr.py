@@ -235,6 +235,23 @@ def col(col_name: str, *, from_: ExcelFrame | None = None, offset: int = 0):
     return Col(col_name, from_=from_, offset=offset)
 
 
+class FixedCell(Expr):
+    def __init__(self, cell: Cell):
+        super().__init__()
+        self._cell = cell
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        return CellRef(self._cell)
+
+    def _fallback_repr(self) -> str:
+        return f"FixedRef({self._cell})"
+
+
+def cell(cell: Cell):
+    """Expresses a fixed cell location. A fixed cell will be broadcasted across the row."""
+    return FixedCell(cell)
+
+
 class LitColumn(Expr):
     def __init__(self, column: list[RawInput]):
         super().__init__()

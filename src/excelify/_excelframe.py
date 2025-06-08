@@ -266,7 +266,7 @@ class ExcelFrame:
         Returns:
             An ExcelFrame with added/updated columns based on the passed expressions.
         """
-        copy = self._copy()
+        copy = self
         height = copy.height
         expr_list = list(exprs) + [
             expr.alias(col_name) for col_name, expr in kwargs.items()
@@ -274,8 +274,6 @@ class ExcelFrame:
         for expr in expr_list:
             col_name = str(expr)
             if col_name not in copy._input:
-                self._ordered_columns.append(col_name)
-            if col_name not in copy._input.keys():
                 # Create an empty column first so the column expressions can
                 # refer to itself.
                 copy._input[col_name] = Column(

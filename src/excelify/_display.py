@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING, Callable, Mapping, Sequence
 import openpyxl
 from lark import Lark
 
-from excelify._cell import Cell
 from excelify._cell_mapping import CellMapping, alpha_to_int, int_to_alpha
+from excelify._styler import DEFAULT_CELL_WIDTH
 from excelify.formula._parser import create_parser
 
 if TYPE_CHECKING:
@@ -20,19 +20,14 @@ if TYPE_CHECKING:
 
 
 DATA_FILE = ".excelify-data/data.pickle"
-DFS_TO_DISPLAY: Sequence[tuple[ExcelFrame, tuple[int, int]]] | None = None
 
 
-def display(dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]], to_disk: bool = False):
-    global DFS_TO_DISPLAY
-    DFS_TO_DISPLAY = dfs
+def display(dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]]):
+    data_path = Path(DATA_FILE)
+    data_path.parent.mkdir(exist_ok=True)
 
-    if to_disk:
-        data_path = Path(DATA_FILE)
-        data_path.parent.mkdir(exist_ok=True)
-
-        with data_path.open("wb") as f:
-            pickle.dump(dfs, f)
+    with data_path.open("wb") as f:
+        pickle.dump(dfs, f)
 
 
 @dataclass
@@ -194,6 +189,13 @@ def of_excel(*, path: Path | str, index_path: Path | str) -> Sequence[ExcelFrame
     return dfs
 
 
+def _try_converting_type(value: str):
+    try:
+        return float(value)
+    except ValueError:
+        return value
+
+
 def of_csv(path: Path | str) -> ExcelFrame:
     """Loads an ExcelFrame from a csv file.
 
@@ -216,7 +218,8 @@ def of_csv(path: Path | str) -> ExcelFrame:
         d_ = {col: [] for col in columns}
         for row in reader:
             for col in columns:
-                d_[col].append(row[col])
+                value = _try_converting_type(row[col])
+                d_[col].append(value)
         return ExcelFrame(d_)
 
 
@@ -247,7 +250,10 @@ def _get_dfs_col_style_json(
             df, start_position=dfs_start_positions[df.id]
         )
         for col_idx, cell_width in col_style.items():
-            if col_idx in combined_col_style:
+            if (
+                col_idx in combined_col_style
+                and combined_col_style[col_idx] is not None
+            ):
                 if combined_col_style[col_idx] != cell_width:
                     raise ValueError(
                         f"Inconsistent cell width for column index {col_idx}: "
@@ -255,6 +261,10 @@ def _get_dfs_col_style_json(
                     )
             else:
                 combined_col_style[col_idx] = cell_width
+    combined_col_style = {
+        col_idx: cell_width or DEFAULT_CELL_WIDTH
+        for col_idx, cell_width in combined_col_style.items()
+    }
     return combined_col_style
 
 
@@ -292,7 +302,7 @@ def _df_to_json(
                 dep_start_row, dep_start_col = dfs_start_positions[dep_id]
                 dep_indices.append(
                     (
-                        dep_start_row + dep_idx,
+                        dep_start_row + dep_idx + (1 if include_header else 0),
                         dep_start_col + dfs_col_to_offset[dep_id][dep_col_name],
                     )
                 )
@@ -317,9 +327,7 @@ def to_json(
     dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]], include_header: bool = True
 ):
     sheets = []
-    if include_header:
-        dfs = [(df, (start_row + 1, start_col)) for (df, (start_row, start_col)) in dfs]
-    cell_mapping = CellMapping(dfs)
+    cell_mapping = CellMapping(dfs, header_in_table=include_header)
     dfs_start_positions = {df.id: start_pos for df, start_pos in dfs}
     dfs_col_to_offset = _get_dfs_col_to_offset(dfs)
     sheets = [
