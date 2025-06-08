@@ -12,7 +12,7 @@ from tabulate import tabulate
 
 from excelify._cell import Cell
 from excelify._cell_expr import CellExpr, Constant, Empty
-from excelify._cell_mapping import CellMapping, alpha_to_int, int_to_alpha
+from excelify._cell_mapping import CellMapping, int_to_alpha
 from excelify._column import Column
 from excelify._display import _df_to_json
 from excelify._element import Element
@@ -20,7 +20,6 @@ from excelify._expr import Expr
 from excelify._html import NotebookFormatter
 from excelify._styler import Styler
 from excelify._types import RawInput
-from excelify.formula._parser import create_parser
 
 
 def _topological_sort(cells: list[Cell]) -> list[Cell]:
@@ -234,23 +233,22 @@ class ExcelFrame:
     def _copy(self) -> ExcelFrame:
         return ExcelFrame(self._input, ordered_columns=self._ordered_columns)
 
-    def with_columns(self, *exprs: Expr) -> ExcelFrame:
-        """Adds or modifies the expression of the column to the table and returns a new ExcelFrame.
+    def with_columns(self, *exprs: Expr, **kwargs) -> ExcelFrame:
+        """Adds or modifies an expression of the column to the table and returns a new ExcelFrame.
 
         Example:
             ```pycon
             >>> import excelify as el
             >>> df = el.ExcelFrame({"x": [1, 2]})
-            >>> df = df.with_columns((el.col("x") * 2).alias("x_times_two"))
-            >>> df = df.with_columns(el.lit([0, 0]).alias("cumulative_x_sum"))
             >>> df = df.with_columns(
             ...     el.map(
             ...         lambda idx: el.col("x")
             ...         if idx == 0
             ...         else el.col("cumulative_x_sum").prev(1) + el.col("x")
-            ...     ).alias("cumulative_x_sum")
+            ...     ).alias("cumulative_x_sum"),
+            ...     x_times_two=el.col("x") * 2
             ... )
-            >>> df
+            >>> df.select(["x", "x_times_two", "cumulative_x_sum"])
             shape: (2, 3)
             +---+-------+-----------------+----------------------+
             |   | x (A) | x_times_two (B) | cumulative_x_sum (C) |
@@ -263,26 +261,29 @@ class ExcelFrame:
 
         Arguments:
             *exprs: expressions to add to the ExcelFrame
+            **kwargs: Column expressions whose name will be determined by the argument name.
 
         Returns:
             An ExcelFrame with added/updated columns based on the passed expressions.
         """
         copy = self._copy()
         height = copy.height
-        for expr in exprs:
+        expr_list = list(exprs) + [
+            expr.alias(col_name) for col_name, expr in kwargs.items()
+        ]
+        for expr in expr_list:
             col_name = str(expr)
             if col_name not in copy._input:
                 self._ordered_columns.append(col_name)
-            if col_name in copy._input.keys():
-                for i, cell in enumerate(copy._input[col_name]):
-                    cell.set_expr(expr.get_cell_expr(copy, i))
-            else:
+            if col_name not in copy._input.keys():
+                # Create an empty column first so the column expressions can
+                # refer to itself.
                 copy._input[col_name] = Column(
-                    copy._id,
-                    col_name,
-                    [expr.get_cell_expr(copy, i) for i in range(height)],
+                    copy._id, col_name, [Empty() for _ in range(height)]
                 )
                 copy._ordered_columns.append(col_name)
+            for i, cell in enumerate(copy._input[col_name]):
+                cell.set_expr(expr.get_cell_expr(copy, i))
         return copy
 
     def evaluate(self, inherit_style: bool = False) -> ExcelFrame:
@@ -535,39 +536,3 @@ def concat(dfs: Iterable[ExcelFrame]) -> ExcelFrame:
                 input[col].extend(df[col])
 
     return ExcelFrame(input)
-
-
-def of_excel(
-    path: Path | str, *, start_pos: tuple[int, int], dimension: tuple[int, int]
-):
-    path = Path(path) if isinstance(path, str) else path
-    workbook = openpyxl.load_workbook(path, read_only=True)
-    # TODO: Pick an appropriate worksheet from an index file instead.
-    worksheet = workbook.active
-    assert worksheet is not None
-    start_row, start_col = start_pos
-    width, height = dimension
-
-    columns = [
-        worksheet[f"{int_to_alpha(col)}{start_row + 1}"].value
-        for col in range(start_col, start_col + width)
-    ]
-    df = ExcelFrame.empty(columns=columns, height=height)
-
-    def cellpos_to_cellref(column_str, row_idx):
-        col_idx = alpha_to_int(column_str)
-        row_idx = row_idx - 1
-
-        return df[df.columns[col_idx]][row_idx]
-
-    parser = create_parser(cellpos_to_cellref)
-    for row_idx in range(height):
-        for col_idx in range(width):
-            df[df.columns[col_idx]][row_idx].cell_expr = parser.parse(
-                str(
-                    worksheet.cell(
-                        row=start_row + 2 + row_idx, column=start_col + 1 + col_idx
-                    ).value
-                )
-            )
-    return df
