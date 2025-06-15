@@ -46,12 +46,12 @@ class Apply(NamedTuple):
     predicate: Predicate
 
 
-DEFAULT_CELL_WIDTH = "80px"
+DEFAULT_CELL_WIDTH = 80
 
 
 @dataclass
 class ColumnStyle:
-    col_width: str | None = None
+    col_width: int | None = None
 
 
 def _default_column_style():
@@ -78,7 +78,7 @@ class Styler:
             self.conditions.append(Apply(Formatter.PERCENT, MatchesColumn(columns)))
         return self
 
-    def cols_width(self, cases: dict[str, str] | None = None) -> Self:
+    def cols_width(self, cases: dict[str, int] | None = None) -> Self:
         if cases is not None:
             for col_name, width_value in cases.items():
                 self._column_style[col_name].col_width = width_value

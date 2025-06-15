@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Mapping
 
@@ -228,6 +229,57 @@ class AverageCellsRef(CellExpr):
                 else:
                     cells.append(self._cells[i])
             return SumCellsRef(cells)
+        else:
+            return self
+
+
+class SumProdCellsRef(CellExpr):
+    def __init__(self, columns: list[list[Cell]]):
+        super().__init__()
+        self._columns = columns
+
+    @property
+    def dependencies(self) -> list[Cell]:
+        return [cell for column in self._columns for cell in column]
+
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+        cell_ranges = [
+            (
+                _get_cell_mapping(col[0].element, mapping, raise_if_missing),
+                _get_cell_mapping(col[-1].element, mapping, raise_if_missing),
+            )
+            for col in self._columns
+        ]
+        cell_ranges_str = ",".join(
+            [f"{from_cell}:{to_cell}" for (from_cell, to_cell) in cell_ranges]
+        )
+        return f"SUMPRODUCT({cell_ranges_str})"
+
+    def compute(self) -> Any:
+        values = [[cell.last_value for cell in column] for column in self._columns]
+        if any(value is None for column in values for value in column):
+            return None
+        else:
+            return sum(
+                [
+                    math.prod([column[i] for column in values])
+                    for i in range(len(values[0]))
+                ]
+            )
+
+    def is_primitive(self) -> bool:
+        return False
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        if any(cell.element in ref_map for column in self._columns for cell in column):
+            columns = [
+                [
+                    ref_map[cell.element] if cell.element in ref_map else cell
+                    for cell in column
+                ]
+                for column in self._columns
+            ]
+            return SumProdCellsRef(columns)
         else:
             return self
 

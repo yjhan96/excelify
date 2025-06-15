@@ -251,7 +251,8 @@ def _get_dfs_col_style_json(
         )
         for col_idx, cell_width in col_style.items():
             if (
-                col_idx in combined_col_style
+                cell_width is not None
+                and col_idx in combined_col_style
                 and combined_col_style[col_idx] is not None
             ):
                 if combined_col_style[col_idx] != cell_width:
@@ -259,7 +260,7 @@ def _get_dfs_col_style_json(
                         f"Inconsistent cell width for column index {col_idx}: "
                         f"{cell_width} vs. {combined_col_style[col_idx]}"
                     )
-            else:
+            elif cell_width is not None:
                 combined_col_style[col_idx] = cell_width
     combined_col_style = {
         col_idx: cell_width or DEFAULT_CELL_WIDTH

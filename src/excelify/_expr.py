@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable, Self
+from typing import TYPE_CHECKING, Callable, Self, Sequence
 
 from excelify._cell import Cell
 from excelify._cell_expr import (
@@ -17,6 +17,7 @@ from excelify._cell_expr import (
     Pow,
     Sub,
     SumCellsRef,
+    SumProdCellsRef,
 )
 from excelify._types import RawInput
 
@@ -44,9 +45,9 @@ class Expr(ABC):
         +---+-------+---------------+-------------+
         |   | x (A) | x_squared (B) | x_div_2 (C) |
         +---+-------+---------------+-------------+
-        | 1 | 1.00  |   (A1 * A1)   |  (A1 / 2)   |
-        | 2 | 2.00  |   (A2 * A2)   |  (A2 / 2)   |
-        | 3 | 3.00  |   (A3 * A3)   |  (A3 / 2)   |
+        | 1 |   1   |   (A1 * A1)   |  (A1 / 2)   |
+        | 2 |   2   |   (A2 * A2)   |  (A2 / 2)   |
+        | 3 |   3   |   (A3 * A3)   |  (A3 / 2)   |
         +---+-------+---------------+-------------+
 
         ```
@@ -220,8 +221,8 @@ def col(col_name: str, *, from_: ExcelFrame | None = None, offset: int = 0):
         +---+-------+-------+-----------+
         |   | x (A) | y (B) |   z (C)   |
         +---+-------+-------+-----------+
-        | 1 | 1.00  | 3.00  | (A1 + B1) |
-        | 2 | 2.00  | 4.00  | (A2 + B2) |
+        | 1 |   1   |   3   | (A1 + B1) |
+        | 2 |   2   |   4   | (A2 + B2) |
         +---+-------+-------+-----------+
 
         ```
@@ -280,8 +281,8 @@ def lit(value: RawInput | list[RawInput]) -> Expr:
         +---+-------+-------+
         |   | x (A) | y (B) |
         +---+-------+-------+
-        | 1 | 0.00  | 1.00  |
-        | 2 | 0.00  | 2.00  |
+        | 1 |   0   |   1   |
+        | 2 |   0   |   2   |
         +---+-------+-------+
 
         ```
@@ -420,8 +421,8 @@ def map(fn: Callable[[int], CellExpr | RawInput | Expr]) -> Map:
         +---+-------+-------+
         |   | x (A) | y (B) |
         +---+-------+-------+
-        | 1 | 1.00  | 0.00  |
-        | 2 | 2.00  | 2.00  |
+        | 1 |   1   |   0   |
+        | 2 |   2   |   2   |
         +---+-------+-------+
 
         ```
@@ -464,18 +465,18 @@ def sum(col_name: str, *, from_: ExcelFrame | None = None):
         +---+-------+------------+
         |   | x (A) | x_sum (B)  |
         +---+-------+------------+
-        | 1 | 1.00  | SUM(A1:A3) |
-        | 2 | 2.00  | SUM(A1:A3) |
-        | 3 | 3.00  | SUM(A1:A3) |
+        | 1 |   1   | SUM(A1:A3) |
+        | 2 |   2   | SUM(A1:A3) |
+        | 3 |   3   | SUM(A1:A3) |
         +---+-------+------------+
         >>> df.evaluate()
         shape: (3, 2)
         +---+-------+-----------+
         |   | x (A) | x_sum (B) |
         +---+-------+-----------+
-        | 1 | 1.00  |   6.00    |
-        | 2 | 2.00  |   6.00    |
-        | 3 | 3.00  |   6.00    |
+        | 1 |   1   |     6     |
+        | 2 |   2   |     6     |
+        | 3 |   3   |     6     |
         +---+-------+-----------+
 
         ```
@@ -516,18 +517,18 @@ def average(col_name: str, *, from_: ExcelFrame | None = None):
         +---+-------+----------------+
         |   | x (A) |   x_sum (B)    |
         +---+-------+----------------+
-        | 1 | 1.00  | AVERAGE(A1:A3) |
-        | 2 | 2.00  | AVERAGE(A1:A3) |
-        | 3 | 3.00  | AVERAGE(A1:A3) |
+        | 1 |   1   | AVERAGE(A1:A3) |
+        | 2 |   2   | AVERAGE(A1:A3) |
+        | 3 |   3   | AVERAGE(A1:A3) |
         +---+-------+----------------+
         >>> df.evaluate()
         shape: (3, 2)
         +---+-------+-----------+
         |   | x (A) | x_sum (B) |
         +---+-------+-----------+
-        | 1 | 1.00  |   2.00    |
-        | 2 | 2.00  |   2.00    |
-        | 3 | 3.00  |   2.00    |
+        | 1 |   1   |    2.0    |
+        | 2 |   2   |    2.0    |
+        | 3 |   3   |    2.0    |
         +---+-------+-----------+
 
         ```
@@ -537,3 +538,22 @@ def average(col_name: str, *, from_: ExcelFrame | None = None):
         from_: An ExcelFrame to refer to. If None, it'll refer to itself.
     """
     return AverageCol(col_name, from_=from_)
+
+
+class SumProdCol(Expr):
+    def __init__(self, col_names: Sequence[str], *, from_: ExcelFrame | None = None):
+        super().__init__()
+        self._col_names = col_names
+        self.from_ = from_
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        from_df = self.from_ if self.from_ is not None else df
+        columns = [[cell for cell in from_df[col_name]] for col_name in self._col_names]
+        return SumProdCellsRef(columns)
+
+    def _fallback_repr(self) -> str:
+        return f"SumProd({self._col_names})"
+
+
+def sumprod(col_names: Sequence[str], *, from_: ExcelFrame | None = None):
+    return SumProdCol(col_names, from_=from_)

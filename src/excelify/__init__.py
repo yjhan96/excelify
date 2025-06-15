@@ -14,11 +14,12 @@ from excelify._expr import (
     SingleCellExpr,
     SubCol,
     average,
+    cell,
     col,
     lit,
     map,
     sum,
-    cell,
+    sumprod,
 )
 
 __all__ = [
@@ -55,4 +56,5 @@ __all__ = [
     "of_excel",
     "of_csv",
     "cell",
+    "sumprod",
 ]
