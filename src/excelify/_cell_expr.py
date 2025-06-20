@@ -11,6 +11,7 @@ from excelify._element import Element
 if TYPE_CHECKING:
     from excelify._cell import Cell
     from excelify._excelframe import CellMapping
+    from excelify._types import RawInput
 
 
 class InvalidCellException(Exception):
@@ -24,7 +25,7 @@ class CellExpr(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         raise NotImplementedError
 
     @abstractmethod
@@ -66,7 +67,7 @@ class Empty(CellExpr):
     def dependencies(self) -> list[Cell]:
         return []
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         return ""
 
     def compute(self) -> Any:
@@ -87,7 +88,7 @@ class Invalid(CellExpr):
     def dependencies(self) -> list[Cell]:
         return []
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         raise InvalidCellException("Invalid cell!")
 
     def compute(self) -> Any:
@@ -109,8 +110,8 @@ class Constant(CellExpr):
     def dependencies(self) -> list[Cell]:
         return []
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
-        return str(self.value)
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
+        return self.value
 
     def compute(self) -> Any:
         return self.value
@@ -141,7 +142,7 @@ class CellRef(CellExpr):
     def dependencies(self) -> list[Cell]:
         return [self._cell_ref]
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         return _get_cell_mapping(self._cell_ref.element, mapping, raise_if_missing)
 
     def compute(self) -> Any:
@@ -166,7 +167,7 @@ class SumCellsRef(CellExpr):
     def dependencies(self) -> list[Cell]:
         return [cell for cell in self._cells]
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         from_cell = _get_cell_mapping(self._cells[0].element, mapping, raise_if_missing)
         to_cell = _get_cell_mapping(self._cells[-1].element, mapping, raise_if_missing)
         return f"SUM({from_cell}:{to_cell})"
@@ -204,7 +205,7 @@ class AverageCellsRef(CellExpr):
     def dependencies(self) -> list[Cell]:
         return [cell for cell in self._cells]
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         from_cell = _get_cell_mapping(self._cells[0].element, mapping, raise_if_missing)
         to_cell = _get_cell_mapping(self._cells[-1].element, mapping, raise_if_missing)
         return f"AVERAGE({from_cell}:{to_cell})"
@@ -242,7 +243,7 @@ class SumProdCellsRef(CellExpr):
     def dependencies(self) -> list[Cell]:
         return [cell for column in self._columns for cell in column]
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         cell_ranges = [
             (
                 _get_cell_mapping(col[0].element, mapping, raise_if_missing),
@@ -294,7 +295,7 @@ class Mult(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
@@ -341,7 +342,7 @@ class Add(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
@@ -387,7 +388,7 @@ class Div(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
@@ -437,7 +438,7 @@ class Sub(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
@@ -484,7 +485,7 @@ class Pow(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
@@ -530,7 +531,7 @@ class Neg(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._expr.dependencies
 
-    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> str:
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             return f"(-{self._expr.to_formula(mapping, raise_if_missing=raise_if_missing)})"
         except InvalidCellException:

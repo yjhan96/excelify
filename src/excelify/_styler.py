@@ -7,6 +7,7 @@ from enum import Enum
 from typing import NamedTuple, Self, Sequence
 
 from excelify._cell import Cell
+from excelify._types import RawInput
 
 
 class Formatter(Enum):
@@ -15,7 +16,7 @@ class Formatter(Enum):
     PERCENT = 3
 
 
-def _format(formatter: Formatter, value: str) -> str:
+def _format(formatter: Formatter, value: RawInput) -> str:
     match formatter:
         case Formatter.INTEGER:
             return f"{int(float(value)):,}"
@@ -84,7 +85,7 @@ class Styler:
                 self._column_style[col_name].col_width = width_value
         return self
 
-    def apply_value(self, cell: Cell, value: str) -> str:
+    def apply_value(self, cell: Cell, value: RawInput) -> RawInput:
         for formatter, predicate in self.conditions:
             if predicate(cell):
                 value = _format(formatter, value)

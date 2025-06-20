@@ -34,7 +34,7 @@ class Cell:
         *,
         style: Styler | None = None,
         raise_if_missing: bool = True,
-    ) -> str:
+    ) -> RawInput:
         value = self.cell_expr.to_formula(mapping, raise_if_missing=raise_if_missing)
         if style is not None:
             return style.apply_value(self, value)

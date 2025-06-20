@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import uuid
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence, overload
+from typing import Any, Iterable, Mapping, Self, Sequence, overload
 
 import openpyxl
 from tabulate import tabulate
@@ -233,7 +233,7 @@ class ExcelFrame:
     def _copy(self) -> ExcelFrame:
         return ExcelFrame(self._input, ordered_columns=self._ordered_columns)
 
-    def with_columns(self, *exprs: Expr, **kwargs) -> ExcelFrame:
+    def with_columns(self, *exprs: Expr, **kwargs) -> Self:
         """Adds or modifies an expression of the column to the table and returns a new ExcelFrame.
 
         Example:
@@ -399,7 +399,7 @@ class ExcelFrame:
             columns.append((col_name, copy[i]))
         return ExcelFrame(dict(columns))
 
-    def select(self, columns: list[str]) -> ExcelFrame:
+    def select(self, columns: list[str]) -> Self:
         """Select a list of columns. It can also be used to reorder the columns.
 
         Example:

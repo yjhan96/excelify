@@ -104,7 +104,7 @@ class HTMLFormatter:
                         else:
                             col_name = self.df.columns[c]
                             cell = self.df[col_name][r]
-                            value = cell.to_formula(mapping)
+                            value = str(cell.to_formula(mapping))
                             attrs = cell.attributes
                             try:
                                 # TODO: Make the rounding configurable.
