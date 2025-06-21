@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
@@ -10,36 +9,57 @@ from excelify._cell import Cell
 from excelify._types import RawInput
 
 
-class Formatter(Enum):
-    INTEGER = 1
-    CURRENCY = 2
-    PERCENT = 3
+@dataclass(frozen=True)
+class NumberFormatter:
+    decimals: int
+
+
+@dataclass(frozen=True)
+class IntegerFormatter:
+    pass
+
+
+@dataclass(frozen=True)
+class CurrencyFormatter:
+    pass
+
+
+@dataclass(frozen=True)
+class PercentFormatter:
+    pass
+
+
+Formatter = NumberFormatter | IntegerFormatter | CurrencyFormatter | PercentFormatter
 
 
 def _format(formatter: Formatter, value: RawInput) -> str:
     match formatter:
-        case Formatter.INTEGER:
+        case NumberFormatter(decimals):
+            return f"{float(value):,.{decimals}f}"
+        case IntegerFormatter():
             return f"{int(float(value)):,}"
-        case Formatter.CURRENCY:
+        case CurrencyFormatter():
             return f"${float(value):,.2f}"
-        case Formatter.PERCENT:
+        case PercentFormatter():
             return f"{float(value) * 100:,.0f}%"
         case _:
             raise ValueError("Impossible")
 
 
-class Predicate(ABC):
-    @abstractmethod
-    def __call__(self, cell: Cell) -> bool:
-        raise NotImplementedError
+class Predicate:
+    def __init__(self, *, columns: Sequence[str] | None, rows: Sequence[int] | None):
+        self._columns = columns
+        self._rows = rows
 
-
-class MatchesColumn(Predicate):
-    def __init__(self, col_names: Sequence[str]):
-        self._col_names = set(col_names)
+        if all(e is None for e in [self._columns, self._rows]):
+            raise ValueError("None of the conditions is defined.")
 
     def __call__(self, cell: Cell) -> bool:
-        return cell.element.col_name in self._col_names
+        if self._columns is not None and cell.element.col_name not in self._columns:
+            return False
+        if self._rows is not None and cell.element.idx not in self._rows:
+            return False
+        return True
 
 
 class Apply(NamedTuple):
@@ -64,19 +84,39 @@ class Styler:
         self.conditions: list[Apply] = []
         self._column_style: dict[str, ColumnStyle] = defaultdict(_default_column_style)
 
-    def fmt_integer(self, columns: Sequence[str] | None = None) -> Self:
-        if columns is not None:
-            self.conditions.append(Apply(Formatter.INTEGER, MatchesColumn(columns)))
+    def fmt_number(
+        self,
+        columns: Sequence[str] | None = None,
+        rows: Sequence[int] | None = None,
+        decimals: int = 2,
+    ) -> Self:
+        self.conditions.append(
+            Apply(NumberFormatter(decimals), Predicate(columns=columns, rows=rows))
+        )
         return self
 
-    def fmt_currency(self, columns: Sequence[str] | None = None) -> Self:
-        if columns is not None:
-            self.conditions.append(Apply(Formatter.CURRENCY, MatchesColumn(columns)))
+    def fmt_integer(
+        self, columns: Sequence[str] | None = None, rows: Sequence[int] | None = None
+    ) -> Self:
+        self.conditions.append(
+            Apply(IntegerFormatter(), Predicate(columns=columns, rows=rows))
+        )
         return self
 
-    def fmt_percent(self, columns: Sequence[str] | None = None) -> Self:
-        if columns is not None:
-            self.conditions.append(Apply(Formatter.PERCENT, MatchesColumn(columns)))
+    def fmt_currency(
+        self, columns: Sequence[str] | None = None, rows: Sequence[int] | None = None
+    ) -> Self:
+        self.conditions.append(
+            Apply(CurrencyFormatter(), Predicate(columns=columns, rows=rows))
+        )
+        return self
+
+    def fmt_percent(
+        self, columns: Sequence[str] | None = None, rows: Sequence[int] | None = None
+    ) -> Self:
+        self.conditions.append(
+            Apply(PercentFormatter(), Predicate(columns=columns, rows=rows))
+        )
         return self
 
     def cols_width(self, cases: dict[str, int] | None = None) -> Self:
