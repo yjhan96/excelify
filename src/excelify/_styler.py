@@ -3,9 +3,10 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import NamedTuple, Self, Sequence
+from typing import Iterable, NamedTuple, Self, Sequence
 
 from excelify._cell import Cell
+from excelify._col_conversion import alpha_to_int
 from excelify._types import RawInput
 
 
@@ -79,10 +80,19 @@ def _default_column_style():
     return ColumnStyle()
 
 
-class Styler:
+class DisplayAxis(Enum):
+    VERTICAL = 0
+    HORIZONTAL = 1
+
+
+class TableStyler:
     def __init__(self) -> None:
         self.conditions: list[Apply] = []
-        self._column_style: dict[str, ColumnStyle] = defaultdict(_default_column_style)
+        self._display_axis: DisplayAxis = DisplayAxis.VERTICAL
+
+    @property
+    def display_axis(self) -> DisplayAxis:
+        return self._display_axis
 
     def fmt_number(
         self,
@@ -119,10 +129,12 @@ class Styler:
         )
         return self
 
-    def cols_width(self, cases: dict[str, int] | None = None) -> Self:
-        if cases is not None:
-            for col_name, width_value in cases.items():
-                self._column_style[col_name].col_width = width_value
+    def display_horizontally(self) -> Self:
+        self._display_axis = DisplayAxis.HORIZONTAL
+        return self
+
+    def display_vertically(self) -> Self:
+        self._display_axis = DisplayAxis.VERTICAL
         return self
 
     def apply_value(self, cell: Cell, value: RawInput) -> RawInput:
@@ -131,6 +143,27 @@ class Styler:
                 value = _format(formatter, value)
         return value
 
-    @property
-    def column_style(self) -> dict[str, ColumnStyle]:
-        return self._column_style
+
+class SheetStyler:
+    def __init__(self) -> None:
+        self._column_style: dict[int, ColumnStyle] = defaultdict(_default_column_style)
+
+    def _validate_columns(self, columns: Iterable[str]):
+        for col_name in columns:
+            if not (col_name.isalpha() and col_name.isupper()):
+                raise ValueError(f"Following column name is invalid: {col_name}")
+
+    def cols_width(self, cases: dict[str, int] | None = None) -> Self:
+        if cases is not None:
+            self._validate_columns(cases.keys())
+            for col_name, width_value in cases.items():
+                self._column_style[alpha_to_int(col_name)].col_width = width_value
+        return self
+
+    def to_json(self) -> dict[int, int]:
+        col_style = {
+            col_idx: cell_width.col_width
+            for col_idx, cell_width in self._column_style.items()
+            if cell_width.col_width is not None
+        }
+        return col_style

@@ -14,11 +14,10 @@ from excelify._cell import Cell
 from excelify._cell_expr import CellExpr, Constant, Empty
 from excelify._cell_mapping import CellMapping, int_to_alpha
 from excelify._column import Column
-from excelify._display import _df_to_json
 from excelify._element import Element
 from excelify._expr import Expr
 from excelify._html import NotebookFormatter
-from excelify._styler import Styler
+from excelify._styler import DisplayAxis, TableStyler
 from excelify._types import RawInput
 
 
@@ -90,7 +89,7 @@ class ExcelFrame:
         input: Mapping[str, Iterable[RawInput | Cell | CellExpr]],
         *,
         ordered_columns: Sequence[str] | None = None,
-        styler: Styler | None = None,
+        styler: TableStyler | None = None,
     ):
         self._id = uuid.uuid4()
         prev_cells = self._get_cell_elements(input)
@@ -110,10 +109,10 @@ class ExcelFrame:
         if styler:
             self._styler = styler
         else:
-            self._styler = Styler()
+            self._styler = TableStyler()
 
     @property
-    def style(self) -> Styler:
+    def style(self) -> TableStyler:
         return self._styler
 
     def _get_cell_elements(
@@ -433,6 +432,53 @@ class ExcelFrame:
         res._input = {col: res._input[col] for col in res._ordered_columns}
         return res
 
+    def _to_json_vertically(self, cell_mapping: CellMapping):
+        table = []
+        evaluated_df = self.evaluate(inherit_style=True)
+        for col_name in self.columns:
+            formula_column = self[col_name]
+            value_column = evaluated_df[col_name]
+            curr_column: list = [
+                {
+                    "formula": col_name,
+                    "value": col_name,
+                    "depIndices": [],
+                    "is_editable": False,
+                }
+            ]
+
+            for formula_cell, value_cell in zip(
+                formula_column, value_column, strict=True
+            ):
+                deps = formula_cell.dependencies
+                dep_indices = [cell_mapping.get_cell_index(dep.element) for dep in deps]
+
+                curr_column.append(
+                    {
+                        "formula": formula_cell.to_formula(cell_mapping),
+                        "value": value_cell.to_formula(
+                            cell_mapping, style=evaluated_df.style
+                        ),
+                        "depIndices": dep_indices,
+                        "is_editable": formula_cell.is_editable,
+                    }
+                )
+            table.append(curr_column)
+        return table
+
+    def _to_json(self, *, cell_mapping: CellMapping):
+        match self.style.display_axis:
+            case DisplayAxis.VERTICAL:
+                return self._to_json_vertically(cell_mapping=cell_mapping)
+            case DisplayAxis.HORIZONTAL:
+                vertical_table = self._to_json_vertically(cell_mapping=cell_mapping)
+                return [
+                    [vertical_table[row][col] for row in range(len(vertical_table))]
+                    for col in range(len(vertical_table[0]))
+                ]
+            case other:
+                raise ValueError(f"Unknown display axis: {other}")
+
     def to_json(
         self, *, include_header: bool = False, start_pos: tuple[int, int] = (0, 0)
     ) -> Any:
@@ -447,21 +493,11 @@ class ExcelFrame:
         Returns:
             a dict that represents JSON.
         """
-        table = []
         start_row, start_col = start_pos
         if include_header:
             start_row = start_row + 1
         cell_mapping = CellMapping([(self, (start_row, start_col))])
-        dfs_start_positions = {self.id: (start_row, start_col)}
-        dfs_col_to_offset = {self.id: {col: i for i, col in enumerate(self.columns)}}
-        table = _df_to_json(
-            self,
-            cell_mapping=cell_mapping,
-            dfs_start_positions=dfs_start_positions,
-            dfs_col_to_offset=dfs_col_to_offset,
-            include_header=include_header,
-        )
-        return table
+        return self._to_json(cell_mapping=cell_mapping)
 
     def as_str(self) -> str:
         cell_mapping = CellMapping([(self, (0, 0))], header_in_table=False)

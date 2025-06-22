@@ -7,7 +7,7 @@ from excelify._types import RawInput
 
 if TYPE_CHECKING:
     from excelify._excelframe import CellMapping, Element
-    from excelify._styler import Styler
+    from excelify._styler import TableStyler
 
 
 class Cell:
@@ -32,7 +32,7 @@ class Cell:
         self,
         mapping: CellMapping,
         *,
-        style: Styler | None = None,
+        style: TableStyler | None = None,
         raise_if_missing: bool = True,
     ) -> RawInput:
         value = self.cell_expr.to_formula(mapping, raise_if_missing=raise_if_missing)
