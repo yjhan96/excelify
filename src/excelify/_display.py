@@ -315,9 +315,6 @@ def _df_to_json(
                     ),
                     "depIndices": dep_indices,
                     "is_editable": formula_cell.is_editable,
-                    "cellWidth": df.style.column_style[
-                        formula_cell.element.col_name
-                    ].col_width,
                 }
             )
         table.append(curr_column)

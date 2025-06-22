@@ -265,7 +265,7 @@ class LitColumn(Expr):
         raise ValueError("Impossible to reach!")
 
 
-def lit(value: RawInput | list[RawInput]) -> Expr:
+def lit(value: RawInput | Sequence[RawInput]) -> Expr:
     """Expresses a constant value across the rows.
 
     Example:
