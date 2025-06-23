@@ -42,7 +42,7 @@ def _format(formatter: Formatter, value: RawInput) -> str:
         case CurrencyFormatter():
             return f"${float(value):,.2f}"
         case PercentFormatter():
-            return f"{float(value) * 100:,.0f}%"
+            return f"{float(value) * 100:,.2f}%"
         case _:
             raise ValueError("Impossible")
 
@@ -140,7 +140,10 @@ class TableStyler:
     def apply_value(self, cell: Cell, value: RawInput) -> RawInput:
         for formatter, predicate in self.conditions:
             if predicate(cell):
-                value = _format(formatter, value)
+                try:
+                    value = _format(formatter, value)
+                except TypeError:
+                    value = "ERROR"
         return value
 
 

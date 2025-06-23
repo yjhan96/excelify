@@ -37,11 +37,19 @@ class CellMapping:
     def __getitem__(self, element: Element) -> str:
         id, col_name, idx = element
         start_row, start_col = self._id_to_start_pos[id]
-        col_idx = int_to_alpha(self._columns[id][col_name] + start_col)
-        row_offset = 1 if self._header_in_table else 0
-        # We add 1 at the end because row is 1-indexed.
-        row_idx = idx + start_row + row_offset + 1
-        return f"{col_idx}{row_idx}"
+        match self._id_to_df[id].style.display_axis:
+            case DisplayAxis.VERTICAL:
+                col_alpha_idx = int_to_alpha(self._columns[id][col_name] + start_col)
+                row_idx = start_row + idx + 1 + (1 if self._header_in_table else 0)
+                return f"{col_alpha_idx}{row_idx}"
+            case DisplayAxis.HORIZONTAL:
+                col_alpha_idx = int_to_alpha(
+                    start_col + (1 if self._header_in_table else 0) + idx
+                )
+                row_idx = start_row + 1 + self._columns[id][col_name]
+                return f"{col_alpha_idx}{row_idx}"
+            case other:
+                raise ValueError(f"Unknown display axis: {other}")
 
     def __contains__(self, element: Element) -> bool:
         id, col_name, _ = element
