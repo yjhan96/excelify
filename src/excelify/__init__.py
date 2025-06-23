@@ -21,7 +21,7 @@ from excelify._expr import (
     sum,
     sumprod,
 )
-from excelify._styler import SheetStyler
+from excelify._styler import DisplayAxis, SheetStyler
 
 __all__ = [
     "ExcelFrame",
@@ -60,4 +60,5 @@ __all__ = [
     "sumprod",
     "SheetStyler",
     "DisplayData",
+    "DisplayAxis",
 ]
