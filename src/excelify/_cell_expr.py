@@ -71,7 +71,7 @@ class Empty(CellExpr):
         return ""
 
     def compute(self) -> Any:
-        return 0
+        return None
 
     def is_primitive(self) -> bool:
         return True
