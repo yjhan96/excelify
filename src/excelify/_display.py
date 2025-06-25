@@ -14,6 +14,7 @@ from lark import Lark
 from excelify._cell_mapping import CellMapping
 from excelify._col_conversion import alpha_to_int, int_to_alpha
 from excelify._styler import SheetStyler
+from excelify._types import Pos
 from excelify.formula._parser import create_parser
 
 if TYPE_CHECKING:
@@ -238,7 +239,10 @@ def to_json(
     sheet_styler: SheetStyler | None = None,
 ):
     cell_mapping = CellMapping(dfs, header_in_table=include_header)
-    tables = [df._to_json(cell_mapping=cell_mapping) for df, _ in dfs]
+    tables = [
+        df._to_json(start_pos=Pos.of_tuple(start_pos), cell_mapping=cell_mapping)
+        for df, start_pos in dfs
+    ]
     col_styles_json: dict
     if sheet_styler is not None:
         col_styles_json = sheet_styler.to_json()

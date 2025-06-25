@@ -18,10 +18,22 @@ class CellMapping:
     ):
         self._id_to_df = {df.id: df for df, _ in dfs}
         self._id_to_start_pos = {df.id: start_pos for df, start_pos in dfs}
-        self._columns = {
-            df.id: {c: i for i, c in enumerate(df.columns)} for df, _ in dfs
-        }
+        self._columns = {df.id: self._get_display_column_indices(df) for df, _ in dfs}
         self._header_in_table = header_in_table
+
+    def _get_display_column_indices(self, df: ExcelFrame):
+        column_groups = df.style.column_groups
+        included_columns = [col for _, columns in column_groups for col in columns]
+        remaining_columns = [col for col in df.columns if col not in included_columns]
+        counter = 0
+        res = {}
+        for _, columns in column_groups:
+            counter += 1
+            for col in columns:
+                res[col] = counter
+                counter += 1
+
+        return res | {c: i + counter for i, c in enumerate(remaining_columns)}
 
     def get_cell_index(self, element: Element) -> tuple[int, int]:
         id, col_name, idx = element

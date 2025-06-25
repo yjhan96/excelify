@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import uuid
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Self, Sequence, overload
 
@@ -18,7 +19,7 @@ from excelify._element import Element
 from excelify._expr import Expr
 from excelify._html import NotebookFormatter
 from excelify._styler import DisplayAxis, TableStyler
-from excelify._types import RawInput
+from excelify._types import Dimension, Pos, RawInput
 
 
 def _topological_sort(cells: list[Cell]) -> list[Cell]:
@@ -432,41 +433,125 @@ class ExcelFrame:
         res._input = {col: res._input[col] for col in res._ordered_columns}
         return res
 
+    def _get_display_column_indices(self) -> dict[str, int]:
+        column_groups = self.style.column_groups
+        included_columns = [col for _, columns in column_groups for col in columns]
+        remaining_columns = [col for col in self.columns if col not in included_columns]
+        counter = 0
+        res = {}
+        for _, columns in column_groups:
+            counter += 1
+            for col in columns:
+                res[col] = counter
+                counter += 1
+
+        return res | {c: i + counter for i, c in enumerate(remaining_columns)}
+
+    def _get_cell_index_from_display_pos(
+        self, pos: tuple[int, int], start_pos: tuple[int, int]
+    ):
+        pos_resolved: Pos = Pos.of_tuple(pos)
+        start_pos_resolved: Pos = Pos.of_tuple(start_pos)
+        col_to_idx = {c: i for i, c in enumerate(self.columns)}
+        displayed_idx_to_col = {
+            i: c for c, i in self._get_display_column_indices().items()
+        }
+        rel_pos: Pos
+        match self.style.display_axis:
+            case DisplayAxis.VERTICAL:
+                rel_pos = Pos(
+                    pos_resolved.row - start_pos_resolved.row - 1,
+                    pos_resolved.col - start_pos_resolved.col,
+                )
+            case DisplayAxis.HORIZONTAL:
+                rel_pos = Pos(
+                    pos_resolved.col - start_pos_resolved.col - 1,
+                    pos_resolved.row - start_pos_resolved.row,
+                )
+            case other:
+                raise ValueError(f"Unknown axis: {other}")
+
+        if (
+            rel_pos.row >= 0
+            and rel_pos.row < self.height
+            and rel_pos.col in displayed_idx_to_col
+        ):
+            return (rel_pos.row, col_to_idx[displayed_idx_to_col[rel_pos.col]])
+        else:
+            return None
+
+    def _get_display_columns(self) -> tuple[list[tuple[str, list[str]]], list[str]]:
+        column_groups = self.style.column_groups
+        included_columns = {col for _, columns in column_groups for col in columns}
+        remaining_columns = [col for col in self.columns if col not in included_columns]
+        return column_groups, remaining_columns
+
+    def _get_col_group_column(self, group_name: str) -> list[dict]:
+        return [
+            {
+                "formula": group_name,
+                "value": group_name,
+                "depIndices": [],
+                "is_editable": False,
+            }
+        ] + [
+            {"formula": "", "value": "", "depIndices": [], "is_editable": False}
+            for _ in range(self.height)
+        ]
+
+    def _get_display_column(
+        self, col_name: str, evaluated_df: ExcelFrame, cell_mapping: CellMapping
+    ) -> list[dict]:
+        res = [
+            {
+                "formula": col_name,
+                "value": col_name,
+                "depIndices": [],
+                "is_editable": False,
+            }
+        ]
+
+        formula_column = self[col_name]
+        value_column = evaluated_df[col_name]
+
+        for formula_cell, value_cell in zip(formula_column, value_column, strict=True):
+            deps = formula_cell.dependencies
+            dep_indices = [cell_mapping.get_cell_index(dep.element) for dep in deps]
+
+            res.append(
+                {
+                    "formula": formula_cell.to_formula(cell_mapping),
+                    "value": value_cell.to_formula(
+                        cell_mapping, style=evaluated_df.style
+                    ),
+                    "depIndices": dep_indices,
+                    "is_editable": formula_cell.is_editable,
+                }
+            )
+        return res
+
     def _to_json_vertically(self, cell_mapping: CellMapping):
         table = []
         evaluated_df = self.evaluate(inherit_style=True)
-        for col_name in self.columns:
-            formula_column = self[col_name]
-            value_column = evaluated_df[col_name]
-            curr_column: list = [
-                {
-                    "formula": col_name,
-                    "value": col_name,
-                    "depIndices": [],
-                    "is_editable": False,
-                }
+        column_groups, remaining_columns = self._get_display_columns()
+
+        for group_name, columns in column_groups:
+            col_groum_column = self._get_col_group_column(group_name)
+            display_columns = [
+                self._get_display_column(col_name, evaluated_df, cell_mapping)
+                for col_name in columns
             ]
+            table.append(col_groum_column)
+            table.extend(display_columns)
 
-            for formula_cell, value_cell in zip(
-                formula_column, value_column, strict=True
-            ):
-                deps = formula_cell.dependencies
-                dep_indices = [cell_mapping.get_cell_index(dep.element) for dep in deps]
-
-                curr_column.append(
-                    {
-                        "formula": formula_cell.to_formula(cell_mapping),
-                        "value": value_cell.to_formula(
-                            cell_mapping, style=evaluated_df.style
-                        ),
-                        "depIndices": dep_indices,
-                        "is_editable": formula_cell.is_editable,
-                    }
-                )
-            table.append(curr_column)
+        remaining_display_columns = [
+            self._get_display_column(col_name, evaluated_df, cell_mapping)
+            for col_name in remaining_columns
+        ]
+        table.extend(remaining_display_columns)
         return table
 
-    def _to_json(self, *, cell_mapping: CellMapping):
+    def _get_table_json(self, cell_mapping: CellMapping) -> list[list[dict[str, Any]]]:
         match self.style.display_axis:
             case DisplayAxis.VERTICAL:
                 return self._to_json_vertically(cell_mapping=cell_mapping)
@@ -478,6 +563,18 @@ class ExcelFrame:
                 ]
             case other:
                 raise ValueError(f"Unknown display axis: {other}")
+
+    def _get_display_dimension(self, table) -> Dimension:
+        return Dimension(width=len(table), height=len(table[0]))
+
+    def _to_json(self, *, start_pos: Pos, cell_mapping: CellMapping):
+        table = self._get_table_json(cell_mapping)
+        display_dimension = self._get_display_dimension(table)
+        return {
+            "table": table,
+            "startPos": asdict(start_pos),
+            "displayDimension": asdict(display_dimension),
+        }
 
     def to_json(
         self, *, include_header: bool = False, start_pos: tuple[int, int] = (0, 0)
@@ -497,7 +594,9 @@ class ExcelFrame:
         if include_header:
             start_row = start_row + 1
         cell_mapping = CellMapping([(self, (start_row, start_col))])
-        return self._to_json(cell_mapping=cell_mapping)
+        return self._to_json(
+            start_pos=Pos.of_tuple(start_pos), cell_mapping=cell_mapping
+        )
 
     def as_str(self) -> str:
         cell_mapping = CellMapping([(self, (0, 0))], header_in_table=False)

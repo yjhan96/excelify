@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, NamedTuple, Self, Sequence
+from typing import Iterable, Mapping, NamedTuple, Self, Sequence
 
 from excelify._cell import Cell
 from excelify._col_conversion import alpha_to_int
@@ -34,6 +34,8 @@ Formatter = NumberFormatter | IntegerFormatter | CurrencyFormatter | PercentForm
 
 
 def _format(formatter: Formatter, value: RawInput) -> str:
+    if value is None:
+        return ""
     match formatter:
         case NumberFormatter(decimals):
             return f"{float(value):,.{decimals}f}"
@@ -89,10 +91,15 @@ class TableStyler:
     def __init__(self) -> None:
         self.conditions: list[Apply] = []
         self._display_axis: DisplayAxis = DisplayAxis.VERTICAL
+        self._column_groups: list[tuple[str, list[str]]] = []
 
     @property
     def display_axis(self) -> DisplayAxis:
         return self._display_axis
+
+    @property
+    def column_groups(self) -> list[tuple[str, list[str]]]:
+        return self._column_groups
 
     def fmt_number(
         self,
@@ -135,6 +142,16 @@ class TableStyler:
 
     def display_vertically(self) -> Self:
         self._display_axis = DisplayAxis.VERTICAL
+        return self
+
+    def group_columns(self, column_groups: list[tuple[str, list[str]]]) -> Self:
+        columns = Counter([col for _, columns in column_groups for col in columns])
+        duplicate_columns = {col for col, counter in columns.items() if counter > 1}
+        if duplicate_columns:
+            raise ValueError(
+                f"A column can't be specified in multiple column groups: {list(duplicate_columns)}"
+            )
+        self._column_groups = column_groups
         return self
 
     def apply_value(self, cell: Cell, value: RawInput) -> RawInput:
