@@ -229,7 +229,7 @@ class AverageCellsRef(CellExpr):
                     cells.append(ref_map[self._cells[i].element])
                 else:
                     cells.append(self._cells[i])
-            return SumCellsRef(cells)
+            return AverageCellsRef(cells)
         else:
             return self
 
