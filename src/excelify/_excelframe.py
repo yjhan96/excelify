@@ -493,6 +493,7 @@ class ExcelFrame:
                 "value": group_name,
                 "depIndices": [],
                 "is_editable": False,
+                "isPrimitive": False,
             }
         ] + [
             {"formula": "", "value": "", "depIndices": [], "is_editable": False}
@@ -502,12 +503,14 @@ class ExcelFrame:
     def _get_display_column(
         self, col_name: str, evaluated_df: ExcelFrame, cell_mapping: CellMapping
     ) -> list[dict]:
+        display_col_name = self.style.column_renames.get(col_name, col_name)
         res = [
             {
-                "formula": col_name,
-                "value": col_name,
+                "formula": display_col_name,
+                "value": display_col_name,
                 "depIndices": [],
                 "is_editable": False,
+                "isPrimitive": False,
             }
         ]
 
@@ -517,15 +520,18 @@ class ExcelFrame:
         for formula_cell, value_cell in zip(formula_column, value_column, strict=True):
             deps = formula_cell.dependencies
             dep_indices = [cell_mapping.get_cell_index(dep.element) for dep in deps]
+            formula_value = formula_cell.to_formula(cell_mapping)
+            formatted_value = self.style.format_value(
+                value_cell, value_cell.to_formula(cell_mapping)
+            )
 
             res.append(
                 {
-                    "formula": formula_cell.to_formula(cell_mapping),
-                    "value": value_cell.to_formula(
-                        cell_mapping, style=evaluated_df.style
-                    ),
+                    "formula": formula_value,
+                    "value": formatted_value.value,
                     "depIndices": dep_indices,
                     "is_editable": formula_cell.is_editable,
+                    "color": formatted_value.color,
                 }
             )
         return res

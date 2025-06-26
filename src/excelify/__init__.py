@@ -6,7 +6,6 @@ from excelify._excelframe import CellMapping, ExcelFrame, concat
 from excelify._expr import (
     AddCol,
     Col,
-    ConstantExpr,
     DivCol,
     Expr,
     Map,
@@ -16,6 +15,7 @@ from excelify._expr import (
     average,
     cell,
     col,
+    constant,
     lit,
     map,
     sum,
@@ -25,7 +25,7 @@ from excelify._styler import DisplayAxis, SheetStyler
 
 __all__ = [
     "ExcelFrame",
-    "ConstantExpr",
+    "constant",
     "Col",
     "col",
     "MultCol",

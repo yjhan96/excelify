@@ -168,6 +168,10 @@ class ConstantExpr(Expr):
         return str(self._value)
 
 
+def constant(value: int | float):
+    return ConstantExpr(value)
+
+
 class SingleCellExpr(Expr):
     def __init__(self, cell: Cell):
         super().__init__()
@@ -254,18 +258,22 @@ def cell(cell: Cell):
 
 
 class LitColumn(Expr):
-    def __init__(self, column: list[RawInput]):
+    def __init__(self, column: list[RawInput | Expr]):
         super().__init__()
         self._column = column
 
     def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
-        return Constant(self._column[idx])
+        formula = self._column[idx]
+        if isinstance(formula, Expr):
+            return formula.get_cell_expr(df, idx)
+        else:
+            return Constant(formula)
 
     def _fallback_repr(self) -> str:
         raise ValueError("Impossible to reach!")
 
 
-def lit(value: RawInput | Sequence[RawInput]) -> Expr:
+def lit(value: RawInput | Sequence[RawInput | Expr]) -> Expr:
     """Expresses a constant value across the rows.
 
     Example:

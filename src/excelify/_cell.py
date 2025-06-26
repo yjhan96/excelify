@@ -35,11 +35,7 @@ class Cell:
         style: TableStyler | None = None,
         raise_if_missing: bool = True,
     ) -> RawInput:
-        value = self.cell_expr.to_formula(mapping, raise_if_missing=raise_if_missing)
-        if style is not None:
-            return style.apply_value(self, value)
-        else:
-            return value
+        return self.cell_expr.to_formula(mapping, raise_if_missing=raise_if_missing)
 
     @property
     def element(self) -> Element:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, Mapping, NamedTuple, Self, Sequence
+from typing import Iterable, NamedTuple, Self, Sequence
 
 from excelify._cell import Cell
 from excelify._col_conversion import alpha_to_int
@@ -30,21 +30,41 @@ class PercentFormatter:
     pass
 
 
-Formatter = NumberFormatter | IntegerFormatter | CurrencyFormatter | PercentFormatter
+@dataclass(frozen=True)
+class ValueColorFormatter:
+    color: str
 
 
-def _format(formatter: Formatter, value: RawInput) -> str:
+Formatter = (
+    NumberFormatter
+    | IntegerFormatter
+    | CurrencyFormatter
+    | PercentFormatter
+    | ValueColorFormatter
+)
+
+
+@dataclass
+class FormattedValue:
+    value: RawInput
+    color: str = "black"
+
+
+def _apply_format(formatter: Formatter, formatted_value: FormattedValue):
+    value = formatted_value.value
     if value is None:
         return ""
     match formatter:
         case NumberFormatter(decimals):
-            return f"{float(value):,.{decimals}f}"
+            formatted_value.value = f"{float(value):,.{decimals}f}"
         case IntegerFormatter():
-            return f"{int(float(value)):,}"
+            formatted_value.value = f"{int(float(value)):,}"
         case CurrencyFormatter():
-            return f"${float(value):,.2f}"
+            formatted_value.value = f"${float(value):,.2f}"
         case PercentFormatter():
-            return f"{float(value) * 100:,.2f}%"
+            formatted_value.value = f"{float(value) * 100:,.2f}%"
+        case ValueColorFormatter(color):
+            formatted_value.color = color
         case _:
             raise ValueError("Impossible")
 
@@ -70,9 +90,6 @@ class Apply(NamedTuple):
     predicate: Predicate
 
 
-DEFAULT_CELL_WIDTH = 80
-
-
 @dataclass
 class ColumnStyle:
     col_width: int | None = None
@@ -92,6 +109,7 @@ class TableStyler:
         self.conditions: list[Apply] = []
         self._display_axis: DisplayAxis = DisplayAxis.VERTICAL
         self._column_groups: list[tuple[str, list[str]]] = []
+        self._column_renames: dict[str, str] = {}
 
     @property
     def display_axis(self) -> DisplayAxis:
@@ -100,6 +118,10 @@ class TableStyler:
     @property
     def column_groups(self) -> list[tuple[str, list[str]]]:
         return self._column_groups
+
+    @property
+    def column_renames(self) -> dict[str, str]:
+        return self._column_renames
 
     def fmt_number(
         self,
@@ -154,30 +176,55 @@ class TableStyler:
         self._column_groups = column_groups
         return self
 
-    def apply_value(self, cell: Cell, value: RawInput) -> RawInput:
+    def rename_columns(self, column_renames: dict[str, str]) -> Self:
+        for original_name, new_name in column_renames.items():
+            self._column_renames[original_name] = new_name
+        return self
+
+    def value_color(
+        self,
+        columns: Sequence[str] | None = None,
+        rows: Sequence[int] | None = None,
+        color: str = "blue",
+    ):
+        self.conditions.append(
+            Apply(ValueColorFormatter(color), Predicate(columns=columns, rows=rows))
+        )
+
+    def format_value(self, cell: Cell, value: RawInput) -> FormattedValue:
+        formatted_value = FormattedValue(value)
         for formatter, predicate in self.conditions:
             if predicate(cell):
                 try:
-                    value = _format(formatter, value)
+                    _apply_format(formatter, formatted_value)
                 except TypeError:
-                    value = "ERROR"
-        return value
+                    formatted_value.value = "ERROR"
+                    break
+        return formatted_value
 
 
 class SheetStyler:
     def __init__(self) -> None:
         self._column_style: dict[int, ColumnStyle] = defaultdict(_default_column_style)
 
-    def _validate_columns(self, columns: Iterable[str]):
+    def _validate_columns(self, columns: Iterable[str | int]):
         for col_name in columns:
-            if not (col_name.isalpha() and col_name.isupper()):
+            if not (
+                (
+                    isinstance(col_name, str)
+                    and col_name.isalpha()
+                    and col_name.isupper()
+                )
+                or (isinstance(col_name, int) and col_name >= 0)
+            ):
                 raise ValueError(f"Following column name is invalid: {col_name}")
 
-    def cols_width(self, cases: dict[str, int] | None = None) -> Self:
+    def cols_width(self, cases: dict[str | int, int] | None = None) -> Self:
         if cases is not None:
             self._validate_columns(cases.keys())
             for col_name, width_value in cases.items():
-                self._column_style[alpha_to_int(col_name)].col_width = width_value
+                key = alpha_to_int(col_name) if isinstance(col_name, str) else col_name
+                self._column_style[key].col_width = width_value
         return self
 
     def to_json(self) -> dict[int, int]:
