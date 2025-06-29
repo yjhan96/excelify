@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+.table-cell {
+    @apply border flex items-center justify-start p-1 text-sm
+        text-gray-800 transition duration-50 ease-in-out;
+}
+
+.editing-cell {
+    @apply bg-blue-50 border-blue-500 ring-2 ring-blue-300 z-20 shadow-md;
+}
+
+.selected-cell {
+    @apply border-blue-400 ring-1 ring-blue-200 bg-blue-50
+}
+
+.default-cell {
+    @apply hover:bg-gray-50;
+}
+
+.dep-cell {
+    @apply ring-1 z-20 shadow-md
+}
+
+.default-editable-cell {
+    @apply bg-orange-100 hover:bg-orange-200;
+}
