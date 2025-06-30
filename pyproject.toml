@@ -8,6 +8,9 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "click>=8.2.1",
+    "flask>=3.1.1",
+    "flask-cors>=6.0.1",
     "ipykernel>=6.29.5",
     "jupyterlab>=4.4.0",
     "lark>=1.2.2",
@@ -35,3 +38,6 @@ build-backend = "hatchling.build"
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
+
+[project.scripts]
+excelify-viewer = "excelify.cli:main"

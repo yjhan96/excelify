@@ -14,3 +14,6 @@ wheels/
 
 # mkdocs sites
 site/
+
+# excelify artifacts
+.excelify-data/

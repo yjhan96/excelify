@@ -11,6 +11,7 @@ from excelify._cell_expr import (
     CellRef,
     Constant,
     Div,
+    Empty,
     Invalid,
     Mult,
     Neg,
@@ -258,7 +259,7 @@ def cell(cell: Cell):
 
 
 class LitColumn(Expr):
-    def __init__(self, column: list[RawInput | Expr]):
+    def __init__(self, column: list[RawInput | Expr | None]):
         super().__init__()
         self._column = column
 
@@ -266,14 +267,16 @@ class LitColumn(Expr):
         formula = self._column[idx]
         if isinstance(formula, Expr):
             return formula.get_cell_expr(df, idx)
-        else:
+        elif formula is not None:
             return Constant(formula)
+        else:
+            return Empty()
 
     def _fallback_repr(self) -> str:
         raise ValueError("Impossible to reach!")
 
 
-def lit(value: RawInput | Sequence[RawInput | Expr]) -> Expr:
+def lit(value: RawInput | Sequence[RawInput | Expr | None]) -> Expr:
     """Expresses a constant value across the rows.
 
     Example:

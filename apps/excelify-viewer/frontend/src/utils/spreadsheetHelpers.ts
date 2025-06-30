@@ -1,4 +1,4 @@
-import { Dispatch, RefObject } from "react";
+import type { Dispatch, RefObject } from "react";
 import type { Dimension } from "../types";
 import type { Pos } from "../pos";
 

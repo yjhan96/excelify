@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { useSheetsDispatch } from "../sheet";
 import { loadSheet } from "../services/api";
 import type { LoadDialogProps } from "../types";

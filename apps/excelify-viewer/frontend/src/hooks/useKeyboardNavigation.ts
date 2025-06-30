@@ -1,15 +1,16 @@
-import { useCallback, KeyboardEvent } from "react";
+import { useCallback, type RefObject } from "react";
 import type { Pos } from "../pos";
+import type { VisibleRange } from "../types";
 
 function maybeUpdateVisibleRange(
-    mainContentRef,
-    selectedCell,
-    visibleRange,
-    numRows,
-    numCols,
-    colStarts,
-    cellHeight,
-    setVisibleRange,
+    mainContentRef: RefObject<HTMLDivElement | null>,
+    selectedCell: Pos,
+    visibleRange: VisibleRange,
+    numRows: number,
+    numCols: number,
+    colStarts: number[],
+    cellHeight: number,
+    setVisibleRange: (updater: (prev: VisibleRange) => VisibleRange) => void,
 ) {
     if (mainContentRef.current) {
             const {clientHeight, clientWidth} = mainContentRef.current;
@@ -54,7 +55,7 @@ function maybeUpdateVisibleRange(
                 endCol = visibleRange.endCol;
             }
 
-            setVisibleRange((prevState) => {
+            setVisibleRange((prevState: VisibleRange) => {
                 if (
                     prevState.startRow === startRow &&
                     prevState.startCol === startCol &&
@@ -78,11 +79,11 @@ interface UseKeyboardNavigationProps {
     numCols: number;
     editingCellValue: string;
     onCellUpdate: (value: string, pos: Pos) => void;
-    visibleRange: any,
-    mainContentRef: any,
-    colStarts: any,
-    cellHeight: any,
-    setVisibleRange: any,
+    visibleRange: VisibleRange,
+    mainContentRef: RefObject<HTMLDivElement | null>,
+    colStarts: number[],
+    cellHeight: number,
+    setVisibleRange: (updater: (prev: VisibleRange) => VisibleRange) => void,
 }
 
 export function useKeyboardNavigation({
@@ -101,7 +102,7 @@ export function useKeyboardNavigation({
     setVisibleRange
 }: UseKeyboardNavigationProps) {
     const handleKeyDown = useCallback(
-        (e: KeyboardEvent) => {
+        (e: globalThis.KeyboardEvent) => {
             // Handle input field events when editing
             if (
                 editingCell &&
@@ -188,7 +189,7 @@ export function useKeyboardNavigation({
                 maybeUpdateVisibleRange(mainContentRef, selectedCell, visibleRange, numRows, numCols, colStarts, cellHeight, setVisibleRange);
             }
         },
-        [selectedCell, editingCell, numRows, numCols, editingCellValue, onCellUpdate, setSelectedCell, setEditingCell],
+        [selectedCell, editingCell, numRows, numCols, editingCellValue, onCellUpdate, setSelectedCell, setEditingCell, cellHeight, colStarts, mainContentRef, setVisibleRange, visibleRange],
     );
 
     return { handleKeyDown };

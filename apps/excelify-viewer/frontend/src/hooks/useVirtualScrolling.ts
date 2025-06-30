@@ -1,4 +1,4 @@
-import { useEffect, RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import type { VisibleRange } from "../types";
 
 interface UseVirtualScrollingProps {
@@ -44,7 +44,7 @@ export function useVirtualScrolling({
             const endCol = Math.min(
                 numCols - 1,
                 colStarts.findLastIndex(
-                    (colStart) => scrollLeft + clientWidth >= colStart,
+                    (colStart: number) => scrollLeft + clientWidth >= colStart,
                 ) + colBuffer,
             );
 

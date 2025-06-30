@@ -1,5 +1,5 @@
-import { Dispatch, RefObject, SetStateAction } from "react";
-import type {  SheetsState } from "../sheet";
+import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { SheetsState } from "../sheet";
 import type { Pos } from "../pos";
 
 export interface VisibleRange {
@@ -14,10 +14,12 @@ export interface Dimension {
     height: number;
 }
 
-export enum DialogType {
-    Load,
-    Save,
-}
+export const DIALOGTYPE = {
+    LOAD: "add",
+    SAVE: "save",
+} as const;
+
+export type DialogType = typeof DIALOGTYPE[keyof typeof DIALOGTYPE];
 
 export interface DialogProps {
     children: React.ReactNode;

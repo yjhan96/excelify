@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, NamedTuple, Self, Sequence
+from typing import Iterable, NamedTuple, Self, Sequence, overload
 
 from excelify._cell import Cell
 from excelify._col_conversion import alpha_to_int
@@ -219,7 +219,10 @@ class SheetStyler:
             ):
                 raise ValueError(f"Following column name is invalid: {col_name}")
 
-    def cols_width(self, cases: dict[str | int, int] | None = None) -> Self:
+    def cols_width(
+        self,
+        cases: dict[str, int] | dict[int, int] | dict[str | int, int] | None = None,
+    ) -> Self:
         if cases is not None:
             self._validate_columns(cases.keys())
             for col_name, width_value in cases.items():

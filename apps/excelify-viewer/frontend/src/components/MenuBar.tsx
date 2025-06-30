@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSheetsDispatch } from "../sheet";
 import { reloadSheet } from "../services/api";
-import { DialogType } from "../types";
+import { DIALOGTYPE, type DialogType } from "../types";
 import { FileMenuBar } from "./FileMenuBar";
 import { LoadDialog } from "./LoadDialog";
 import { SaveDialog } from "./SaveDialog";
@@ -32,9 +32,9 @@ export function MenuBar() {
     }, [open]);
 
     const dialogContent =
-        dialog === DialogType.Load ? (
+        dialog === DIALOGTYPE.LOAD ? (
             <LoadDialog setDialog={setDialog} setOpen={setOpen} />
-        ) : dialog === DialogType.Save ? (
+        ) : dialog === DIALOGTYPE.SAVE ? (
             <SaveDialog setDialog={setDialog} setOpen={setOpen} />
         ) : (
             <></>

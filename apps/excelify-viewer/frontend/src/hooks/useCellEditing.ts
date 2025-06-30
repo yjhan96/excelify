@@ -1,4 +1,4 @@
-import { useState, useEffect, RefObject, useRef } from "react";
+import { useState, useEffect, type RefObject, useRef } from "react";
 import type { Pos } from "../pos";
 import type { SheetsState, CellContent } from "../sheet";
 import type { Dimension } from "../types";

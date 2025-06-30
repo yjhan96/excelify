@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import type { SaveDialogProps } from "../types";
 import { saveSheet } from "../services/api";
 

@@ -1,4 +1,4 @@
-import { DialogProps } from "../types";
+import type { DialogProps } from "../types";
 
 export function Dialog({ children, onClose }: DialogProps) {
     return (

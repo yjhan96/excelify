@@ -1,4 +1,4 @@
-import { Dispatch } from "react";
+import type { Dispatch } from "react";
 import type { SheetsAction, SheetsResponse } from "../sheet";
 import type { Pos } from "../pos";
 
@@ -90,7 +90,7 @@ export function saveSheet(filename: string) {
             filename: filename,
         }),
     })
-    .catch((error) => {
-        console.log("received error" + error);
-    })
+        .catch((error) => {
+            console.log("received error" + error);
+        })
 }

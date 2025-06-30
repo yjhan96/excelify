@@ -8,7 +8,7 @@ export function SpreadsheetHeader({
     colStarts,
     visibleRange,
 }: SpreadsheetHeaderProps) {
-    let colsToRender = [];
+    const colsToRender = [];
     for (let c = visibleRange.startCol; c <= visibleRange.endCol; c++) {
         colsToRender.push({
             colIndex: c,
