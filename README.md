@@ -1,5 +1,7 @@
 ## Excelify: Create Excel spreadsheets using DataFrame-like API
 
+[![Python tests](https://github.com/yjhan96/excelify/actions/workflows/github-actions-demo.yml/badge.svg?branch=main)](https://github.com/yjhan96/excelify/actions/workflows/github-actions-demo.yml)
+
 Excelify is a DataFrame-like library that lets users create Excel spreadsheets.
 
 To learn more, read Getting Started. TODO: Add a link.
