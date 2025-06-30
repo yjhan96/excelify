@@ -1,7 +1,7 @@
 [project]
 name = "excelify"
 version = "0.1.0"
-description = "Add your description here"
+description = "Create Spreadsheets using DataFrame-like API"
 readme = "README.md"
 authors = [
     { name = "Albert Han", email = "yjhan96@gmail.com" }

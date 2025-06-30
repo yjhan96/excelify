@@ -11,7 +11,8 @@ import excelify as el
 DATA_FILE = ".excelify-data/data.pickle"
 
 
-def create_app(file_path: Path):
+def create_app(file_path: str, cwd_str: str):
+    cwd = Path(cwd_str)
     app = Flask(__name__, static_folder="../frontend/dist", static_url_path="/")
     app.config["DEBUG"] = True
     CORS(app)
@@ -23,7 +24,7 @@ def create_app(file_path: Path):
 
     @app.put("/api/reload")
     def reset():
-        data_path = Path(DATA_FILE)
+        data_path = cwd / DATA_FILE
         if data_path.exists():
             data_path.unlink()
 
@@ -31,7 +32,7 @@ def create_app(file_path: Path):
         script_path = request.cookies.get("script_path")
         assert script_path is not None
 
-        subprocess.run([sys.executable, script_path])
+        subprocess.run([sys.executable, script_path], cwd=str(cwd))
 
         with data_path.open("rb") as f:
             display_data: el.DisplayData = pickle.load(f)
@@ -44,7 +45,7 @@ def create_app(file_path: Path):
 
     @app.route("/api/sheet")
     def get_sheet():
-        data_path = Path(DATA_FILE)
+        data_path = cwd / DATA_FILE
         script_path: str | None = None
         display_data: el.DisplayData
         if data_path.exists():
@@ -57,11 +58,11 @@ def create_app(file_path: Path):
                     "Couldn't find cookie from the request. using default path instead."
                 )
                 script_path = str(file_path)
-            subprocess.run([sys.executable, str(script_path)])
+            subprocess.run([sys.executable, str(script_path)], cwd=str(cwd))
             with data_path.open("rb") as f:
                 display_data = pickle.load(f)
         if not data_path.exists():
-            with Path(DATA_FILE).open("wb") as f:
+            with (cwd / DATA_FILE).open("wb") as f:
                 pickle.dump(display_data, f)
 
         dfs_json = el.to_json(
@@ -96,7 +97,7 @@ def create_app(file_path: Path):
     @app.put("/api/update")
     def update_cell():
         update_data = request.get_json()
-        data_path = Path(DATA_FILE)
+        data_path = cwd / DATA_FILE
         display_data = el.DisplayData
         with data_path.open("rb") as f:
             display_data = pickle.load(f)
@@ -119,11 +120,11 @@ def create_app(file_path: Path):
 
     @app.route("/api/load", methods=["POST"])
     def load_file():
-        data_path = Path(DATA_FILE)
+        data_path = cwd / DATA_FILE
         load_file_data = request.get_json()
-        script_path = Path(load_file_data["path"]).expanduser().resolve()
+        script_path = (cwd / load_file_data["path"]).expanduser().resolve()
 
-        subprocess.run([sys.executable, str(script_path)])
+        subprocess.run([sys.executable, str(script_path)], cwd=str(cwd))
         display_data: el.DisplayData
         with data_path.open("rb") as f:
             display_data = pickle.load(f)
@@ -139,7 +140,7 @@ def create_app(file_path: Path):
 
     @app.route("/api/save", methods=["POST"])
     def save_file():
-        data_path = Path(DATA_FILE)
+        data_path = cwd / DATA_FILE
         save_file_data = request.get_json()
         save_path = Path(save_file_data["filename"]).expanduser().resolve()
         display_data: el.DisplayData

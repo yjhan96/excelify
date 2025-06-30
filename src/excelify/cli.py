@@ -35,7 +35,7 @@ def main(file_path):
         "-m",
         "flask",
         "--app",
-        f'app:create_app("{file_path}")',
+        f'app:create_app("{file_path}", "{Path.cwd()}")',
         "run",
         "--no-debugger",
         "--debug",

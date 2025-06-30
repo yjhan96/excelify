@@ -1,6 +1,9 @@
+import os
+from pathlib import Path
+
 import excelify as el
 
-df = el.of_csv("/home/albert-han/excelify/examples/portfolio/example.csv")
+df = el.of_csv(Path(os.path.abspath(__file__)).parent / "example.csv")
 
 columns = [
     "symbol",
