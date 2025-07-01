@@ -6,7 +6,8 @@ import copy
 import uuid
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Self, Sequence, overload
+from typing import Any, Iterable, Mapping, Sequence, overload
+from typing_extensions import Self
 
 import openpyxl
 from tabulate import tabulate

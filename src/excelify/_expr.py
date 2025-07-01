@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable, Self, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
+from typing_extensions import Self
 
 from excelify._cell import Cell
 from excelify._cell_expr import (

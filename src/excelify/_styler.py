@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, NamedTuple, Self, Sequence, overload
+from typing import Iterable, NamedTuple, Sequence, overload
+from typing_extensions import Self
 
 from excelify._cell import Cell
 from excelify._col_conversion import alpha_to_int
