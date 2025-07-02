@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from typing import Iterable, NamedTuple, Sequence, overload
+
 from typing_extensions import Self
 
 from excelify._cell import Cell
@@ -231,9 +232,9 @@ class SheetStyler:
                 self._column_style[key].col_width = width_value
         return self
 
-    def to_json(self) -> dict[int, int]:
+    def to_json(self) -> dict[str, int]:
         col_style = {
-            col_idx: cell_width.col_width
+            str(col_idx): cell_width.col_width
             for col_idx, cell_width in self._column_style.items()
             if cell_width.col_width is not None
         }

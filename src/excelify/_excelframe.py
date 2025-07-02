@@ -7,10 +7,10 @@ import uuid
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence, overload
-from typing_extensions import Self
 
 import openpyxl
 from tabulate import tabulate
+from typing_extensions import Self
 
 from excelify._cell import Cell
 from excelify._cell_expr import CellExpr, Constant, Empty
@@ -520,7 +520,9 @@ class ExcelFrame:
 
         for formula_cell, value_cell in zip(formula_column, value_column, strict=True):
             deps = formula_cell.dependencies
-            dep_indices = [cell_mapping.get_cell_index(dep.element) for dep in deps]
+            dep_indices = [
+                list(cell_mapping.get_cell_index(dep.element)) for dep in deps
+            ]
             formula_value = formula_cell.to_formula(cell_mapping)
             formatted_value = self.style.format_value(
                 value_cell, value_cell.to_formula(cell_mapping)

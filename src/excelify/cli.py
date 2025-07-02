@@ -29,18 +29,28 @@ def shutdown_process(child_process: subprocess.Popen | None, process_name: str):
 def main(file_path):
     repo_root = get_repo_root()
     executable_path = Path(sys.executable)
-    webapp_dir = repo_root / "apps" / "excelify-viewer" / "backend"
+    webapp_dir = repo_root
     webapp_cmd = [
         executable_path,
         "-m",
         "flask",
         "--app",
-        f'app:create_app("{file_path}", "{Path.cwd()}")',
+        f'apps.excelify_viewer.backend.app:create_app("{file_path}", "{Path.cwd()}")',
         "run",
         "--no-debugger",
         "--debug",
     ]
+    server_command = [
+        executable_path,
+        "-m",
+        "apps.excelify_viewer.server.server",
+        "--working-dir",
+        ".",
+        "--file-path",
+        str(file_path),
+    ]
     backend_subprocess: subprocess.Popen | None = None
+    server_subprocess: subprocess.Popen | None = None
     try:
         backend_subprocess = subprocess.Popen(
             webapp_cmd,
@@ -49,13 +59,21 @@ def main(file_path):
             stderr=sys.stderr,
         )
 
-        for p in [backend_subprocess]:
+        server_subprocess = subprocess.Popen(
+            server_command,
+            cwd=str(repo_root),
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+
+        for p in [backend_subprocess, server_subprocess]:
             p.wait()
     except Exception as e:
         print(f"Received the following error: {e}", file=sys.stderr)
     finally:
         print("Shutting down applications...")
         shutdown_process(backend_subprocess, "backend process")
+        shutdown_process(server_subprocess, "server process")
 
 
 if __name__ == "__main__":

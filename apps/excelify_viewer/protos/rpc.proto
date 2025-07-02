@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package rpc;
+
+import "google/protobuf/struct.proto";
+
+
+service ExcelifyViewer {
+    rpc Reload(ReloadRequest) returns (ReloadResponse) {}
+    rpc GetSheet(GetSheetRequest) returns (GetSheetResponse) {}
+    rpc UpdateCell(UpdateCellRequest) returns (UpdateCellResponse) {}
+    rpc LoadFile(LoadFileRequest) returns (LoadFileResponse) {}
+    rpc SaveFile(SaveFileRequest) returns (SaveFileResponse) {}
+}
+
+
+message ReloadRequest {
+    string script_path = 1;
+}
+
+message ReloadResponse {
+    google.protobuf.Struct table = 1;
+}
+
+message GetSheetRequest {
+    string script_path = 1;
+}
+
+message GetSheetResponse {
+    google.protobuf.Struct table = 1;
+}
+
+message UpdateCellRequest {
+    string script_path = 1;
+    Position pos = 2;
+    float value = 3;
+}
+
+message UpdateCellResponse {
+    google.protobuf.Struct table = 1;
+}
+
+message LoadFileRequest {
+    string script_path = 1;
+}
+
+message LoadFileResponse {
+    google.protobuf.Struct table = 1;
+}
+
+message SaveFileRequest {
+    string script_path = 1;
+    string file_path = 2;
+}
+
+message SaveFileResponse {}
+
+message Position {
+    int64 row = 1;
+    int64 col = 2;
+}
