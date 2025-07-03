@@ -2,7 +2,7 @@ import type { Dispatch } from "react";
 import type { SheetsAction, SheetsResponse } from "../sheet";
 import type { Pos } from "../pos";
 
-export function reloadSheet(dispatchSheets: Dispatch<SheetsAction>): void {
+export function reloadSheet(dispatchSheets: Dispatch<SheetsAction>, scriptPath: string | undefined): void {
     dispatchSheets({ type: "setError", error: "Reloading..." });
     fetch("/api/reload", {
         method: "PUT",
@@ -10,6 +10,9 @@ export function reloadSheet(dispatchSheets: Dispatch<SheetsAction>): void {
             "Content-Type": "application/json",
             body: JSON.stringify({}),
         },
+        body: JSON.stringify({
+            scriptPath: scriptPath,
+        })
     })
         .then((res) => res.json())
         .then((data: SheetsResponse) => {
@@ -44,6 +47,7 @@ export function loadSheet(path: string, dispatchSheets: Dispatch<SheetsAction>):
 
 export function updateCellValue(
     dispatchSheets: Dispatch<SheetsAction>,
+    scriptPath: string | undefined,
     updatedValue: string,
     pos: Pos,
 ): void {
@@ -53,6 +57,7 @@ export function updateCellValue(
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
+            scriptPath: scriptPath,
             value: updatedValue,
             pos: [pos.row, pos.col],
         }),
@@ -69,8 +74,8 @@ export function updateCellValue(
         });
 }
 
-export function getSheet(dispatchSheets: Dispatch<SheetsAction>): void {
-    fetch("/api/sheet")
+export function getSheet(dispatchSheets: Dispatch<SheetsAction>, scriptPath: string | undefined): void {
+    fetch(`/api/sheet?scriptPath=${scriptPath}`)
         .then((res) => res.json())
         .then((sheets: SheetsResponse) => {
             dispatchSheets({ type: "setSheet", sheets: sheets });
@@ -80,13 +85,14 @@ export function getSheet(dispatchSheets: Dispatch<SheetsAction>): void {
         });
 }
 
-export function saveSheet(filename: string) {
+export function saveSheet(scriptPath: string | undefined, filename: string) {
     fetch("/api/save", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
+            scriptPath: scriptPath,
             filename: filename,
         }),
     })

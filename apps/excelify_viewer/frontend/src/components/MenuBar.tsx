@@ -6,12 +6,14 @@ import { FileMenuBar } from "./FileMenuBar";
 import { LoadDialog } from "./LoadDialog";
 import { SaveDialog } from "./SaveDialog";
 import imgUrl from "../assets/images/koala.svg";
+import { useParams } from "react-router";
 
 export function MenuBar() {
   const dispatchSheets = useSheetsDispatch();
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogType | null>(null);
   const dropdownRef = useRef<HTMLLIElement | null>(null);
+  const { "*": splat } = useParams();
 
   useEffect(() => {
     function close(e: MouseEvent) {
@@ -61,7 +63,7 @@ export function MenuBar() {
               <button
                 className="hover:text-gray-300 transition duration-150 ease-in-out cursor-pointer"
                 onClick={() => {
-                  reloadSheet(dispatchSheets);
+                  reloadSheet(dispatchSheets, splat);
                 }}
               >
                 Reload
