@@ -64,6 +64,9 @@ uv add <pkg> # Add new dependency
 - Column expressions (`Expr`) generate cell expressions (`CellExpr`) when applied to rows
 - Cell expressions support arithmetic operations and maintain dependency graphs
 - Use `el.col("column_name")` to reference columns and `el.lit(value)` for constants
+- When referencing cells from other ExcelFrames, use `el.cell(other_frame["column"][row])`
+- Constants in expressions don't need `el.lit()` wrapping - use them directly (e.g., `1.0 + el.cell(...)`)
+- Cross-frame references: `el.col("column", from_=other_frame)` for column references
 
 ### Adding New Functions
 1. Add the cell-level implementation in `_cell_expr.py` (e.g., `SumCellsRef`, `AverageCellsRef`)
@@ -86,3 +89,9 @@ pytest test/test_load_and_save.py::test_excel_load_save -v
 - Cells are referenced using Excel-style notation (A1, B2, etc.)
 - Column indices convert to letters: 0=A, 1=B, 25=Z, 26=AA
 - Row indices are 1-based to match Excel conventions
+
+### Common Patterns
+- **Multiple tables**: Use `el.display([(table1, (row, col)), (table2, (row, col))], sheet_styler=styler)` to display multiple ExcelFrames
+- **Editable cells**: Set `frame["column"][row].is_editable = True` to make cells user-editable
+- **Formatting**: Use `frame.style.fmt_currency(columns=[...]).fmt_percent(columns=[...])` for formatting
+- **Cross-table dependencies**: Reference cells from other tables using `el.cell(other_frame["column"][row])` in expressions
