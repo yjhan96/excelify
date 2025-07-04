@@ -46,8 +46,8 @@ option_table = option_table.with_columns(
 # Format as currency and percentage
 (
     option_table.style
-    .fmt_currency(columns=["stock_price", "call_intrinsic", "call_profit_loss"])
-    .fmt_percent(columns=["delta"])
+    .fmt_currency(columns=["stock_price", "call_intrinsic", "call_profit_loss"], accounting=True)
+    .fmt_number(columns=["delta"])
 )
 
 sheet_styler = el.SheetStyler().cols_width({"A": 120, "B": 120, "C": 120, "D": 80})

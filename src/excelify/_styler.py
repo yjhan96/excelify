@@ -24,7 +24,7 @@ class IntegerFormatter:
 
 @dataclass(frozen=True)
 class CurrencyFormatter:
-    pass
+    accounting: bool
 
 
 @dataclass(frozen=True)
@@ -61,8 +61,13 @@ def _apply_format(formatter: Formatter, formatted_value: FormattedValue):
             formatted_value.value = f"{float(value):,.{decimals}f}"
         case IntegerFormatter():
             formatted_value.value = f"{int(float(value)):,}"
-        case CurrencyFormatter():
-            formatted_value.value = f"${float(value):,.2f}"
+        case CurrencyFormatter(accounting):
+            float_value = float(value)
+            if accounting and float_value < 0:
+                formatted_value.value = f"({abs(float_value):,.2f})"
+                formatted_value.color = "red"
+            else:
+                formatted_value.value = f"${float_value:,.2f}"
         case PercentFormatter():
             formatted_value.value = f"{float(value) * 100:,.2f}%"
         case ValueColorFormatter(color):
@@ -145,10 +150,10 @@ class TableStyler:
         return self
 
     def fmt_currency(
-        self, columns: Sequence[str] | None = None, rows: Sequence[int] | None = None
+            self, columns: Sequence[str] | None = None, rows: Sequence[int] | None = None, accounting: bool = False,
     ) -> Self:
         self.conditions.append(
-            Apply(CurrencyFormatter(), Predicate(columns=columns, rows=rows))
+            Apply(CurrencyFormatter(accounting), Predicate(columns=columns, rows=rows))
         )
         return self
 
