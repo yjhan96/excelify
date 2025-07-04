@@ -14,6 +14,17 @@ if TYPE_CHECKING:
     from excelify._types import RawInput
 
 
+# Operator precedence values (higher = higher precedence)
+OPERATOR_PRECEDENCE = {
+    "comparison": 1,    # =, <>, <, >, <=, >=
+    "addition": 2,      # +, -
+    "multiplication": 3, # *, /
+    "exponentiation": 4, # ^
+    "unary": 5,         # -x (negation)
+    "default": 0,       # Constants, cell refs, functions
+}
+
+
 class InvalidCellException(Exception):
     pass
 
@@ -35,6 +46,23 @@ class CellExpr(ABC):
     @abstractmethod
     def is_primitive(self) -> bool:
         raise NotImplementedError
+
+    def get_precedence(self) -> int:
+        """Get operator precedence. Higher values = higher precedence."""
+        return OPERATOR_PRECEDENCE["default"]
+
+    def needs_parentheses(self, parent_precedence: int, is_right_operand: bool = False) -> bool:
+        """Check if this expression needs parentheses when used in a parent expression."""
+        my_precedence = self.get_precedence()
+        if my_precedence == 0:  # Non-operators never need parentheses
+            return False
+        if my_precedence < parent_precedence:
+            return True
+        # For same precedence, right operands of non-associative operators need parentheses
+        if my_precedence == parent_precedence and is_right_operand:
+            # Right-associative operators (like exponentiation) don't need parentheses on the right
+            return parent_precedence != OPERATOR_PRECEDENCE["exponentiation"]
+        return False
 
     def __truediv__(self, other: CellExpr) -> CellExpr:
         return Div(self, other)
@@ -295,6 +323,9 @@ class Mult(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
+    def get_precedence(self) -> int:
+        return OPERATOR_PRECEDENCE["multiplication"]
+
     def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
@@ -303,7 +334,14 @@ class Mult(CellExpr):
             right_cell_formula = self._right_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
             )
-            return f"({left_cell_formula} * {right_cell_formula})"
+
+            # Add parentheses only if needed
+            if self._left_cell_expr.needs_parentheses(self.get_precedence(), False):
+                left_cell_formula = f"({left_cell_formula})"
+            if self._right_cell_expr.needs_parentheses(self.get_precedence(), True):
+                right_cell_formula = f"({right_cell_formula})"
+
+            return f"{left_cell_formula} * {right_cell_formula}"
         except InvalidCellException:
             return "ERROR"
 
@@ -342,6 +380,9 @@ class Add(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
+    def get_precedence(self) -> int:
+        return OPERATOR_PRECEDENCE["addition"]
+
     def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
@@ -350,7 +391,14 @@ class Add(CellExpr):
             right_cell_formula = self._right_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
             )
-            return f"({left_cell_formula} + {right_cell_formula})"
+
+            # Add parentheses only if needed
+            if self._left_cell_expr.needs_parentheses(self.get_precedence(), False):
+                left_cell_formula = f"({left_cell_formula})"
+            if self._right_cell_expr.needs_parentheses(self.get_precedence(), True):
+                right_cell_formula = f"({right_cell_formula})"
+
+            return f"{left_cell_formula} + {right_cell_formula}"
         except InvalidCellException:
             return "ERROR"
 
@@ -388,6 +436,9 @@ class Div(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
+    def get_precedence(self) -> int:
+        return OPERATOR_PRECEDENCE["multiplication"]
+
     def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
@@ -396,7 +447,14 @@ class Div(CellExpr):
             right_cell_formula = self._right_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
             )
-            return f"({left_cell_formula} / {right_cell_formula})"
+
+            # Add parentheses only if needed
+            if self._left_cell_expr.needs_parentheses(self.get_precedence(), False):
+                left_cell_formula = f"({left_cell_formula})"
+            if self._right_cell_expr.needs_parentheses(self.get_precedence(), True):
+                right_cell_formula = f"({right_cell_formula})"
+
+            return f"{left_cell_formula} / {right_cell_formula}"
         except InvalidCellException:
             return "ERROR"
 
@@ -438,6 +496,9 @@ class Sub(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
+    def get_precedence(self) -> int:
+        return OPERATOR_PRECEDENCE["addition"]
+
     def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
@@ -446,7 +507,14 @@ class Sub(CellExpr):
             right_cell_formula = self._right_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
             )
-            return f"({left_cell_formula} - {right_cell_formula})"
+
+            # Add parentheses only if needed
+            if self._left_cell_expr.needs_parentheses(self.get_precedence(), False):
+                left_cell_formula = f"({left_cell_formula})"
+            if self._right_cell_expr.needs_parentheses(self.get_precedence(), True):
+                right_cell_formula = f"({right_cell_formula})"
+
+            return f"{left_cell_formula} - {right_cell_formula}"
         except InvalidCellException:
             return "ERROR"
 
@@ -636,6 +704,9 @@ class Compare(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
+    def get_precedence(self) -> int:
+        return OPERATOR_PRECEDENCE["comparison"]
+
     def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
@@ -644,7 +715,14 @@ class Compare(CellExpr):
             right_cell_formula = self._right_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
             )
-            return f"({left_cell_formula} {self._operator} {right_cell_formula})"
+
+            # Add parentheses only if needed
+            if self._left_cell_expr.needs_parentheses(self.get_precedence(), False):
+                left_cell_formula = f"({left_cell_formula})"
+            if self._right_cell_expr.needs_parentheses(self.get_precedence(), True):
+                right_cell_formula = f"({right_cell_formula})"
+
+            return f"{left_cell_formula} {self._operator} {right_cell_formula}"
         except InvalidCellException:
             return "ERROR"
 
@@ -696,6 +774,9 @@ class Pow(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
 
+    def get_precedence(self) -> int:
+        return OPERATOR_PRECEDENCE["exponentiation"]
+
     def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
             left_cell_formula = self._left_cell_expr.to_formula(
@@ -704,7 +785,14 @@ class Pow(CellExpr):
             right_cell_formula = self._right_cell_expr.to_formula(
                 mapping, raise_if_missing=raise_if_missing
             )
-            return f"({left_cell_formula} ^ {right_cell_formula})"
+
+            # Add parentheses only if needed
+            if self._left_cell_expr.needs_parentheses(self.get_precedence(), False):
+                left_cell_formula = f"({left_cell_formula})"
+            if self._right_cell_expr.needs_parentheses(self.get_precedence(), True):
+                right_cell_formula = f"({right_cell_formula})"
+
+            return f"{left_cell_formula} ^ {right_cell_formula}"
         except InvalidCellException:
             return "ERROR"
 
@@ -742,9 +830,18 @@ class Neg(CellExpr):
     def dependencies(self) -> list[Cell]:
         return self._expr.dependencies
 
+    def get_precedence(self) -> int:
+        return OPERATOR_PRECEDENCE["unary"]
+
     def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
-            return f"(-{self._expr.to_formula(mapping, raise_if_missing=raise_if_missing)})"
+            expr_formula = self._expr.to_formula(mapping, raise_if_missing=raise_if_missing)
+
+            # Add parentheses only if needed
+            if self._expr.needs_parentheses(self.get_precedence(), False):
+                expr_formula = f"({expr_formula})"
+
+            return f"-{expr_formula}"
         except InvalidCellException:
             return "ERROR"
 

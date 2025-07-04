@@ -82,7 +82,7 @@ def to_excel(
     for df, (start_row, start_col) in dfs:
         for i, col in enumerate(df.columns):
             cells = df[col]
-            worksheet.cell(row=start_row + 1, column=start_col + i + 1).value = col
+            worksheet.cell(row=start_row + 1, column=start_col + i + 1).value = col  # type: ignore
             start_offset = 1
 
             for j, cell in enumerate(cells):
@@ -91,7 +91,7 @@ def to_excel(
                     formula = f"={formula}"
                 worksheet.cell(
                     row=start_row + j + start_offset + 1, column=start_col + i + 1
-                ).value = formula
+                ).value = formula  # type: ignore
 
     workbook.save(path)
 
