@@ -475,6 +475,217 @@ class Sub(CellExpr):
             return Sub(left_cell_expr, right_cell_expr)
 
 
+class Max(CellExpr):
+    def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
+        super().__init__()
+        self._left_cell_expr = left_cell_expr
+        self._right_cell_expr = right_cell_expr
+
+    @property
+    def dependencies(self) -> list[Cell]:
+        return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
+
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
+        try:
+            left_cell_formula = self._left_cell_expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
+            right_cell_formula = self._right_cell_expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
+            return f"MAX({left_cell_formula}, {right_cell_formula})"
+        except InvalidCellException:
+            return "ERROR"
+
+    def compute(self) -> Any:
+        left_value = self._left_cell_expr.compute()
+        right_value = self._right_cell_expr.compute()
+
+        if left_value is None or right_value is None:
+            return None
+        else:
+            return max(left_value, right_value)
+
+    def is_primitive(self) -> bool:
+        return False
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        left_cell_expr = self._left_cell_expr.update_cell_refs(ref_map)
+        right_cell_expr = self._right_cell_expr.update_cell_refs(ref_map)
+
+        if (
+            left_cell_expr == self._left_cell_expr
+            and right_cell_expr == self._right_cell_expr
+        ):
+            return self
+        else:
+            return Max(left_cell_expr, right_cell_expr)
+
+
+class Min(CellExpr):
+    def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
+        super().__init__()
+        self._left_cell_expr = left_cell_expr
+        self._right_cell_expr = right_cell_expr
+
+    @property
+    def dependencies(self) -> list[Cell]:
+        return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
+
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
+        try:
+            left_cell_formula = self._left_cell_expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
+            right_cell_formula = self._right_cell_expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
+            return f"MIN({left_cell_formula}, {right_cell_formula})"
+        except InvalidCellException:
+            return "ERROR"
+
+    def compute(self) -> Any:
+        left_value = self._left_cell_expr.compute()
+        right_value = self._right_cell_expr.compute()
+
+        if left_value is None or right_value is None:
+            return None
+        else:
+            return min(left_value, right_value)
+
+    def is_primitive(self) -> bool:
+        return False
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        left_cell_expr = self._left_cell_expr.update_cell_refs(ref_map)
+        right_cell_expr = self._right_cell_expr.update_cell_refs(ref_map)
+
+        if (
+            left_cell_expr == self._left_cell_expr
+            and right_cell_expr == self._right_cell_expr
+        ):
+            return self
+        else:
+            return Min(left_cell_expr, right_cell_expr)
+
+
+class If(CellExpr):
+    def __init__(self, condition_expr: CellExpr, true_expr: CellExpr, false_expr: CellExpr):
+        super().__init__()
+        self._condition_expr = condition_expr
+        self._true_expr = true_expr
+        self._false_expr = false_expr
+
+    @property
+    def dependencies(self) -> list[Cell]:
+        return self._condition_expr.dependencies + self._true_expr.dependencies + self._false_expr.dependencies
+
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
+        try:
+            condition_formula = self._condition_expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
+            true_formula = self._true_expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
+            false_formula = self._false_expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
+            return f"IF({condition_formula}, {true_formula}, {false_formula})"
+        except InvalidCellException:
+            return "ERROR"
+
+    def compute(self) -> Any:
+        condition_value = self._condition_expr.compute()
+
+        if condition_value is None:
+            return None
+
+        # Evaluate condition as boolean
+        if condition_value:
+            return self._true_expr.compute()
+        else:
+            return self._false_expr.compute()
+
+    def is_primitive(self) -> bool:
+        return False
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        condition_expr = self._condition_expr.update_cell_refs(ref_map)
+        true_expr = self._true_expr.update_cell_refs(ref_map)
+        false_expr = self._false_expr.update_cell_refs(ref_map)
+
+        if (
+            condition_expr == self._condition_expr
+            and true_expr == self._true_expr
+            and false_expr == self._false_expr
+        ):
+            return self
+        else:
+            return If(condition_expr, true_expr, false_expr)
+
+
+class Compare(CellExpr):
+    def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr, operator: str):
+        super().__init__()
+        self._left_cell_expr = left_cell_expr
+        self._right_cell_expr = right_cell_expr
+        self._operator = operator  # ">", "<", ">=", "<=", "=", "<>"
+
+    @property
+    def dependencies(self) -> list[Cell]:
+        return self._left_cell_expr.dependencies + self._right_cell_expr.dependencies
+
+    def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
+        try:
+            left_cell_formula = self._left_cell_expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
+            right_cell_formula = self._right_cell_expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
+            return f"({left_cell_formula} {self._operator} {right_cell_formula})"
+        except InvalidCellException:
+            return "ERROR"
+
+    def compute(self) -> Any:
+        left_value = self._left_cell_expr.compute()
+        right_value = self._right_cell_expr.compute()
+
+        if left_value is None or right_value is None:
+            return None
+
+        if self._operator == ">":
+            return left_value > right_value
+        elif self._operator == "<":
+            return left_value < right_value
+        elif self._operator == ">=":
+            return left_value >= right_value
+        elif self._operator == "<=":
+            return left_value <= right_value
+        elif self._operator == "=":
+            return left_value == right_value
+        elif self._operator == "<>":
+            return left_value != right_value
+        else:
+            return None
+
+    def is_primitive(self) -> bool:
+        return False
+
+    def update_cell_refs(self, ref_map: Mapping[Element, Cell]) -> CellExpr:
+        left_cell_expr = self._left_cell_expr.update_cell_refs(ref_map)
+        right_cell_expr = self._right_cell_expr.update_cell_refs(ref_map)
+
+        if (
+            left_cell_expr == self._left_cell_expr
+            and right_cell_expr == self._right_cell_expr
+        ):
+            return self
+        else:
+            return Compare(left_cell_expr, right_cell_expr, self._operator)
+
+
 class Pow(CellExpr):
     def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr):
         super().__init__()

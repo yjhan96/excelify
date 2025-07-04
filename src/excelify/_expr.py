@@ -10,10 +10,14 @@ from excelify._cell_expr import (
     AverageCellsRef,
     CellExpr,
     CellRef,
+    Compare,
     Constant,
     Div,
     Empty,
+    If,
     Invalid,
+    Max,
+    Min,
     Mult,
     Neg,
     Pow,
@@ -156,6 +160,64 @@ class Expr(ABC):
 
         assert isinstance(other, Expr)
         return PowCol(other, self)
+
+    def __gt__(self, other) -> Expr:
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return CompareExpr(self, other, ">")
+
+    def __lt__(self, other) -> Expr:
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return CompareExpr(self, other, "<")
+
+    def __ge__(self, other) -> Expr:
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return CompareExpr(self, other, ">=")
+
+    def __le__(self, other) -> Expr:
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return CompareExpr(self, other, "<=")
+
+    def __eq__(self, other) -> Expr:  # type: ignore[override]
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return CompareExpr(self, other, "=")
+
+    def __ne__(self, other) -> Expr:  # type: ignore[override]
+        if isinstance(other, int) or isinstance(other, float):
+            other = ConstantExpr(other)
+
+        assert isinstance(other, Expr)
+        return CompareExpr(self, other, "<>")
+
+
+class CompareExpr(Expr):
+    def __init__(self, left_expr: Expr, right_expr: Expr, operator: str):
+        super().__init__()
+        self._left_expr = left_expr
+        self._right_expr = right_expr
+        self._operator = operator
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        left_cell_expr = self._left_expr.get_cell_expr(df, idx)
+        right_cell_expr = self._right_expr.get_cell_expr(df, idx)
+        return Compare(left_cell_expr, right_cell_expr, self._operator)
+
+    def _fallback_repr(self) -> str:
+        return f"({self._left_expr._fallback_repr()} {self._operator} {self._right_expr._fallback_repr()})"
 
 
 class ConstantExpr(Expr):
@@ -569,3 +631,132 @@ class SumProdCol(Expr):
 
 def sumprod(col_names: Sequence[str], *, from_: ExcelFrame | None = None):
     return SumProdCol(col_names, from_=from_)
+
+
+class MaxExpr(Expr):
+    def __init__(self, left_expr: Expr, right_expr: Expr):
+        super().__init__()
+        self._left_expr = left_expr
+        self._right_expr = right_expr
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        left_cell_expr = self._left_expr.get_cell_expr(df, idx)
+        right_cell_expr = self._right_expr.get_cell_expr(df, idx)
+        return Max(left_cell_expr, right_cell_expr)
+
+    def _fallback_repr(self) -> str:
+        return f"Max({self._left_expr._fallback_repr()}, {self._right_expr._fallback_repr()})"
+
+
+def max(left_expr: Expr, right_expr: Expr) -> Expr:
+    """Create an expression that returns the maximum of two expressions.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df = el.ExcelFrame({"x": [1, 2, 3], "y": [2, 1, 4]})
+        >>> df = df.with_columns(el.max(el.col("x"), el.col("y")).alias("max_val"))
+        >>> df.evaluate()  # doctest: +NORMALIZE_WHITESPACE
+        shape: (3, 3)
+        +---+-------+-------+-------------+
+        |   | x (A) | y (B) | max_val (C) |
+        +---+-------+-------+-------------+
+        | 1 |   1   |   2   |      2      |
+        | 2 |   2   |   1   |      2      |
+        | 3 |   3   |   4   |      4      |
+        +---+-------+-------+-------------+
+
+        ```
+
+    Arguments:
+        left_expr: First expression to compare
+        right_expr: Second expression to compare
+    """
+    return MaxExpr(left_expr, right_expr)
+
+
+class MinExpr(Expr):
+    def __init__(self, left_expr: Expr, right_expr: Expr):
+        super().__init__()
+        self._left_expr = left_expr
+        self._right_expr = right_expr
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        left_cell_expr = self._left_expr.get_cell_expr(df, idx)
+        right_cell_expr = self._right_expr.get_cell_expr(df, idx)
+        return Min(left_cell_expr, right_cell_expr)
+
+    def _fallback_repr(self) -> str:
+        return f"Min({self._left_expr._fallback_repr()}, {self._right_expr._fallback_repr()})"
+
+
+def min(left_expr: Expr, right_expr: Expr) -> Expr:
+    """Create an expression that returns the minimum of two expressions.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df = el.ExcelFrame({"x": [1, 2, 3], "y": [2, 1, 4]})
+        >>> df = df.with_columns(el.min(el.col("x"), el.col("y")).alias("min_val"))
+        >>> df.evaluate()
+        shape: (3, 3)
+        +---+-------+-------+-------------+
+        |   | x (A) | y (B) | min_val (C) |
+        +---+-------+-------+-------------+
+        | 1 |   1   |   2   |      1      |
+        | 2 |   2   |   1   |      1      |
+        | 3 |   3   |   4   |      3      |
+        +---+-------+-------+-------------+
+
+        ```
+
+    Arguments:
+        left_expr: First expression to compare
+        right_expr: Second expression to compare
+    """
+    return MinExpr(left_expr, right_expr)
+
+
+class IfExpr(Expr):
+    def __init__(self, condition_expr: Expr, true_expr: Expr, false_expr: Expr):
+        super().__init__()
+        self._condition_expr = condition_expr
+        self._true_expr = true_expr
+        self._false_expr = false_expr
+
+    def get_cell_expr(self, df: ExcelFrame, idx: int) -> CellExpr:
+        condition_cell_expr = self._condition_expr.get_cell_expr(df, idx)
+        true_cell_expr = self._true_expr.get_cell_expr(df, idx)
+        false_cell_expr = self._false_expr.get_cell_expr(df, idx)
+        return If(condition_cell_expr, true_cell_expr, false_cell_expr)
+
+    def _fallback_repr(self) -> str:
+        return f"If({self._condition_expr._fallback_repr()}, {self._true_expr._fallback_repr()}, {self._false_expr._fallback_repr()})"
+
+
+def if_(condition_expr: Expr, true_expr: Expr, false_expr: Expr) -> Expr:
+    """Create a conditional expression that returns different values based on a condition.
+
+    Example:
+        ```pycon
+        >>> import excelify as el
+        >>> df = el.ExcelFrame({"x": [1, 2, 3]})
+        >>> df = df.with_columns(el.if_(el.col("x") > el.lit(2), el.lit(100), el.lit(50)).alias("result"))
+        >>> df.evaluate()
+        shape: (3, 2)
+        +---+-------+------------+
+        |   | x (A) | result (B) |
+        +---+-------+------------+
+        | 1 |   1   |     50     |
+        | 2 |   2   |     50     |
+        | 3 |   3   |    100     |
+        +---+-------+------------+
+
+        ```
+
+    Arguments:
+        condition_expr: Expression that evaluates to a boolean-like value
+        true_expr: Expression to return when condition is true
+        false_expr: Expression to return when condition is false
+    """
+    return IfExpr(condition_expr, true_expr, false_expr)

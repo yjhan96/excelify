@@ -95,3 +95,49 @@ pytest test/test_load_and_save.py::test_excel_load_save -v
 - **Editable cells**: Set `frame["column"][row].is_editable = True` to make cells user-editable
 - **Formatting**: Use `frame.style.fmt_currency(columns=[...]).fmt_percent(columns=[...])` for formatting
 - **Cross-table dependencies**: Reference cells from other tables using `el.cell(other_frame["column"][row])` in expressions
+- **Dynamic positioning**: Use `el.map(lambda idx: ...)` with index-based calculations for dynamic row positioning (e.g., centering values around a specific row)
+- **Prefer lowercase**: Use `el.map()` instead of `el.Map()` for consistency
+
+### Adding New Functions
+When implementing new functions (like `max`, `min`, `if_`):
+
+1. **Cell Expression Level** (`_cell_expr.py`):
+   - Create a new class inheriting from `CellExpr`
+   - Implement required methods: `dependencies`, `to_formula`, `compute`, `is_primitive`, `update_cell_refs`
+   - For binary operations, follow the pattern of existing classes like `Add`, `Sub`, etc.
+   - Use Excel function syntax in `to_formula()` (e.g., `"MAX({left}, {right})"`, `"IF({condition}, {true}, {false})"`)
+
+2. **Column Expression Level** (`_expr.py`):
+   - Import the new cell expression class at the top
+   - Create a wrapper class inheriting from `Expr`
+   - Implement `get_cell_expr()` and `_fallback_repr()` methods
+   - Create a user-facing function that returns an instance of the wrapper class
+
+3. **Export** (`__init__.py`):
+   - Add imports for both the cell expression class and user function
+   - Add the user function to `__all__` list
+
+This pattern ensures the function works at both cell and column expression levels with proper Excel formula generation.
+
+### Adding Operators to Expr Class
+When implementing operators (like comparison operators):
+
+1. **Cell Expression Level** (`_cell_expr.py`):
+   - Create operator class (e.g., `Compare`) that handles the operation at cell level
+   - Support multiple operators via parameter (e.g., `">", "<", ">=", "<=", "=", "<>"`)
+
+2. **Column Expression Level** (`_expr.py`):
+   - Create wrapper class (e.g., `CompareExpr`)
+   - Add magic methods to `Expr` class (`__gt__`, `__lt__`, `__eq__`, etc.)
+   - Handle both `Expr` and numeric literal operands by converting literals to `ConstantExpr`
+   - Return instances of the wrapper class
+
+3. **Function Naming**:
+   - Use `function_name_` (with underscore) when the name conflicts with Python keywords (e.g., `if_`)
+
+### Doctest Guidelines
+- Include realistic examples that demonstrate the function's usage
+- Use proper formatting that matches actual output (including column widths)
+- Add empty line before closing ``` to match actual output format
+- Use numeric values instead of strings for `el.lit()` in examples
+- Test doctests with `pytest --doctest-modules` to ensure they pass

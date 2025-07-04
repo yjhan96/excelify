@@ -1,11 +1,12 @@
 from excelify._cell import Cell
-from excelify._cell_expr import Add, CellExpr, CellRef, Constant, Div, Empty, Mult, Sub
+from excelify._cell_expr import Add, CellExpr, CellRef, Compare, Constant, Div, Empty, If, Max, Min, Mult, Sub
 from excelify._column import ColumnAutocompleter
 from excelify._display import DisplayData, display, of_csv, of_excel, to_excel, to_json
 from excelify._excelframe import CellMapping, ExcelFrame, concat
 from excelify._expr import (
     AddCol,
     Col,
+    CompareExpr,
     DivCol,
     Expr,
     Map,
@@ -16,8 +17,11 @@ from excelify._expr import (
     cell,
     col,
     constant,
+    if_,
     lit,
     map,
+    max,
+    min,
     sum,
     sumprod,
 )
@@ -37,6 +41,8 @@ __all__ = [
     "CellExpr",
     "CellMapping",
     "CellRef",
+    "Compare",
+    "CompareExpr",
     "Constant",
     "Div",
     "Expr",
@@ -51,6 +57,9 @@ __all__ = [
     "ColumnAutocompleter",
     "sum",
     "average",
+    "max",
+    "min",
+    "if_",
     "display",
     "to_excel",
     "to_json",
