@@ -141,3 +141,16 @@ When implementing operators (like comparison operators):
 - Add empty line before closing ``` to match actual output format
 - Use numeric values instead of strings for `el.lit()` in examples
 - Test doctests with `pytest --doctest-modules` to ensure they pass
+
+### Creating Examples
+When creating examples in the `examples/` directory:
+- Use `el.ExcelFrame.empty()` to create empty dataframes with specified columns and height
+- Initialize columns with `el.lit()` for literal values or lists (e.g., `el.lit([i for i in range(10)])`)
+- Reference other columns using `el.col("column_name")` for formulas and expressions
+- Use `el.display()` with position tuples: `el.display([(df, (0, 0))], sheet_styler=sheet_styler)`
+- Always include a `sheet_styler = el.SheetStyler()` for consistent formatting
+
+### Styling and Display
+- Use `df.style.display_horizontally()` to display tables horizontally instead of vertically
+- Apply formatters like `fmt_currency()`, `fmt_percent()`, `fmt_integer()` to style columns
+- Use `el.SheetStyler().cols_width()` to set column widths in the Excel output
