@@ -16,12 +16,12 @@ if TYPE_CHECKING:
 
 # Operator precedence values (higher = higher precedence)
 OPERATOR_PRECEDENCE = {
-    "comparison": 1,    # =, <>, <, >, <=, >=
-    "addition": 2,      # +, -
-    "multiplication": 3, # *, /
-    "exponentiation": 4, # ^
-    "unary": 5,         # -x (negation)
-    "default": 0,       # Constants, cell refs, functions
+    "comparison": 1,  # =, <>, <, >, <=, >=
+    "addition": 2,  # +, -
+    "multiplication": 3,  # *, /
+    "exponentiation": 4,  # ^
+    "unary": 5,  # -x (negation)
+    "default": 0,  # Constants, cell refs, functions
 }
 
 
@@ -51,7 +51,9 @@ class CellExpr(ABC):
         """Get operator precedence. Higher values = higher precedence."""
         return OPERATOR_PRECEDENCE["default"]
 
-    def needs_parentheses(self, parent_precedence: int, is_right_operand: bool = False) -> bool:
+    def needs_parentheses(
+        self, parent_precedence: int, is_right_operand: bool = False
+    ) -> bool:
         """Check if this expression needs parentheses when used in a parent expression."""
         my_precedence = self.get_precedence()
         if my_precedence == 0:  # Non-operators never need parentheses
@@ -638,7 +640,9 @@ class Min(CellExpr):
 
 
 class If(CellExpr):
-    def __init__(self, condition_expr: CellExpr, true_expr: CellExpr, false_expr: CellExpr):
+    def __init__(
+        self, condition_expr: CellExpr, true_expr: CellExpr, false_expr: CellExpr
+    ):
         super().__init__()
         self._condition_expr = condition_expr
         self._true_expr = true_expr
@@ -646,7 +650,11 @@ class If(CellExpr):
 
     @property
     def dependencies(self) -> list[Cell]:
-        return self._condition_expr.dependencies + self._true_expr.dependencies + self._false_expr.dependencies
+        return (
+            self._condition_expr.dependencies
+            + self._true_expr.dependencies
+            + self._false_expr.dependencies
+        )
 
     def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
@@ -694,7 +702,9 @@ class If(CellExpr):
 
 
 class Compare(CellExpr):
-    def __init__(self, left_cell_expr: CellExpr, right_cell_expr: CellExpr, operator: str):
+    def __init__(
+        self, left_cell_expr: CellExpr, right_cell_expr: CellExpr, operator: str
+    ):
         super().__init__()
         self._left_cell_expr = left_cell_expr
         self._right_cell_expr = right_cell_expr
@@ -835,7 +845,9 @@ class Neg(CellExpr):
 
     def to_formula(self, mapping: CellMapping, *, raise_if_missing: bool) -> RawInput:
         try:
-            expr_formula = self._expr.to_formula(mapping, raise_if_missing=raise_if_missing)
+            expr_formula = self._expr.to_formula(
+                mapping, raise_if_missing=raise_if_missing
+            )
 
             # Add parentheses only if needed
             if self._expr.needs_parentheses(self.get_precedence(), False):

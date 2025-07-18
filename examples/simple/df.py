@@ -33,13 +33,18 @@ df["annual_return"][0].is_editable = True
 df["compounded_amount"][0].is_editable = True
 (
     df.style.fmt_integer(columns=["year"])
-    .fmt_currency(columns=["annual_investment", "compounded_amount"])
+    .fmt_currency(columns=["annual_investment", "compounded_amount"], accounting=True)
     .fmt_percent(columns=["annual_return"])
+    .value_color(columns=["annual_investment"], color="green")
 )
 
 df2 = el.ExcelFrame.empty(columns=["x", "y"], height=10)
 df2 = df2.with_columns(
     x=el.col("annual_investment", from_=df), y=el.col("compounded_amount", from_=df)
+)
+
+(
+    df2.style.fmt_integer(columns=["y"])
 )
 
 

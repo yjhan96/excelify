@@ -7,6 +7,11 @@ from typing import Iterable, NamedTuple, Sequence, overload
 
 from typing_extensions import Self
 
+import openpyxl
+import openpyxl.cell
+import openpyxl.styles
+import openpyxl.styles.numbers
+
 from excelify._cell import Cell
 from excelify._col_conversion import alpha_to_int
 from excelify._types import RawInput
@@ -74,6 +79,89 @@ def _apply_format(formatter: Formatter, formatted_value: FormattedValue):
             formatted_value.color = color
         case _:
             raise ValueError("Impossible")
+
+
+def _color_to_hex(color: str) -> str:
+    """
+    Converts known color name into a hex value so openpyxl can understand.
+    """
+    color_map = {
+        "black": "000000",
+        "white": "FFFFFF",
+        "red": "FF0000",
+        "green": "008000",
+        "blue": "0000FF",
+        "yellow": "FFFF00",
+        "cyan": "00FFFF",
+        "magenta": "FF00FF",
+        "orange": "FFA500",
+        "purple": "800080",
+        "pink": "FFC0CB",
+        "brown": "A52A2A",
+        "gray": "808080",
+        "grey": "808080",
+        "lime": "00FF00",
+        "navy": "000080",
+        "teal": "008080",
+        "olive": "808000",
+        "maroon": "800000",
+        "silver": "C0C0C0",
+        "gold": "FFD700",
+        "violet": "EE82EE",
+        "indigo": "4B0082",
+        "coral": "FF7F50",
+        "salmon": "FA8072",
+        "khaki": "F0E68C",
+        "crimson": "DC143C",
+        "chocolate": "D2691E",
+        "darkblue": "00008B",
+        "darkgreen": "006400",
+        "darkred": "8B0000",
+        "lightblue": "ADD8E6",
+        "lightgreen": "90EE90",
+        "lightgray": "D3D3D3",
+        "lightgrey": "D3D3D3",
+        "darkgray": "A9A9A9",
+        "darkgrey": "A9A9A9",
+    }
+
+    normalized_color = color.lower().strip()
+    if normalized_color in color_map:
+        return color_map[normalized_color]
+    else:
+        # If color is already a hex code (with or without #), return it
+        if normalized_color.startswith("#"):
+            return normalized_color[1:]
+        elif len(normalized_color) == 6 and all(
+            c in "0123456789abcdef" for c in normalized_color
+        ):
+            return normalized_color.upper()
+        else:
+            # Default to black if color is not recognized
+            return "000000"
+
+
+def _apply_format_excel(formatter: Formatter, sheet_cell: openpyxl.cell.Cell):
+    match formatter:
+        case NumberFormatter(decimals):
+            sheet_cell.number_format = (
+                openpyxl.styles.numbers.FORMAT_NUMBER_COMMA_SEPARATED1
+            )
+        case IntegerFormatter():
+            sheet_cell.number_format = openpyxl.styles.numbers.FORMAT_NUMBER
+        case CurrencyFormatter(accounting):
+            if accounting:
+                sheet_cell.number_format = '"$"#,##0.00_);[Red](#,##0.00)'
+            else:
+                sheet_cell.number_format = (
+                    openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+                )
+        case PercentFormatter():
+            sheet_cell.number_format = openpyxl.styles.numbers.FORMAT_PERCENTAGE
+        case ValueColorFormatter(color):
+            sheet_cell.font = openpyxl.styles.Font(color=_color_to_hex(color))
+        case _:
+            pass
 
 
 class Predicate:
@@ -150,7 +238,10 @@ class TableStyler:
         return self
 
     def fmt_currency(
-            self, columns: Sequence[str] | None = None, rows: Sequence[int] | None = None, accounting: bool = False,
+        self,
+        columns: Sequence[str] | None = None,
+        rows: Sequence[int] | None = None,
+        accounting: bool = False,
     ) -> Self:
         self.conditions.append(
             Apply(CurrencyFormatter(accounting), Predicate(columns=columns, rows=rows))
@@ -208,6 +299,11 @@ class TableStyler:
                     formatted_value.value = "ERROR"
                     break
         return formatted_value
+
+    def format_value_excel(self, cell: Cell, sheet_cell: openpyxl.cell.Cell):
+        for formatter, predicate in self.conditions:
+            if predicate(cell):
+                _apply_format_excel(formatter, sheet_cell)
 
 
 class SheetStyler:

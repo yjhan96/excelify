@@ -1,5 +1,18 @@
 from excelify._cell import Cell
-from excelify._cell_expr import Add, CellExpr, CellRef, Compare, Constant, Div, Empty, If, Max, Min, Mult, Sub
+from excelify._cell_expr import (
+    Add,
+    CellExpr,
+    CellRef,
+    Compare,
+    Constant,
+    Div,
+    Empty,
+    If,
+    Max,
+    Min,
+    Mult,
+    Sub,
+)
 from excelify._column import ColumnAutocompleter
 from excelify._display import DisplayData, display, of_csv, of_excel, to_excel, to_json
 from excelify._excelframe import CellMapping, ExcelFrame, concat

@@ -89,9 +89,12 @@ def to_excel(
                 formula = cell.to_formula(mapping)
                 if not cell.cell_expr.is_primitive():
                     formula = f"={formula}"
-                worksheet.cell(
+
+                sheet_cell = worksheet.cell(
                     row=start_row + j + start_offset + 1, column=start_col + i + 1
-                ).value = formula  # type: ignore
+                )
+                sheet_cell.value = formula  # type: ignore
+                df.style.format_value_excel(cell, sheet_cell)  # type: ignore
 
     workbook.save(path)
 
