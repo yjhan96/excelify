@@ -33,7 +33,9 @@ def test_arithmetic_precedence():
     df = el.ExcelFrame({"x": [1], "y": [2], "z": [3]})
     df = df.with_columns(
         add_mult=(el.col("x") + el.col("y") * el.col("z")),  # Should be: x + y * z
-        paren_mult=((el.col("x") + el.col("y")) * el.col("z")),  # Should be: (x + y) * z
+        paren_mult=(
+            (el.col("x") + el.col("y")) * el.col("z")
+        ),  # Should be: (x + y) * z
         pow_mult=(el.col("x") ** el.col("y") * el.col("z")),  # Should be: x ^ y * z
         mult_pow=(el.col("x") * el.col("y") ** el.col("z")),  # Should be: x * y ^ z
     )
@@ -56,8 +58,8 @@ def test_subtraction_division_precedence():
     df = el.ExcelFrame({"x": [10], "y": [2], "z": [3]})
     df = df.with_columns(
         sub_mult=(el.col("x") - el.col("y") * el.col("z")),  # Should be: x - y * z
-        div_add=(el.col("x") / el.col("y") + el.col("z")),   # Should be: x / y + z
-        sub_div=(el.col("x") - el.col("y") / el.col("z")),   # Should be: x - y / z
+        div_add=(el.col("x") / el.col("y") + el.col("z")),  # Should be: x / y + z
+        sub_div=(el.col("x") - el.col("y") / el.col("z")),  # Should be: x - y / z
     )
 
     assert_str(

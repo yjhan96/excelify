@@ -43,9 +43,7 @@ df2 = df2.with_columns(
     x=el.col("annual_investment", from_=df), y=el.col("compounded_amount", from_=df)
 )
 
-(
-    df2.style.fmt_integer(columns=["y"])
-)
+(df2.style.fmt_integer(columns=["y"]))
 
 
 sheet_styler = el.SheetStyler().cols_width({"B": 150, "C": 110, "D": 150})

@@ -11,10 +11,13 @@ import openpyxl
 import openpyxl.cell
 import openpyxl.styles
 import openpyxl.styles.numbers
+import openpyxl.worksheet.worksheet
 
 from excelify._cell import Cell
-from excelify._col_conversion import alpha_to_int
+from excelify._col_conversion import alpha_to_int, int_to_alpha
 from excelify._types import RawInput
+
+PIXEL_TO_EXCEL_WIDTH_RATIO = 12
 
 
 @dataclass(frozen=True)
@@ -340,3 +343,10 @@ class SheetStyler:
             if cell_width.col_width is not None
         }
         return col_style
+
+    def set_style_excel(self, worksheet: openpyxl.worksheet.worksheet.Worksheet):
+        for col_idx, cell_width in self._column_style.items():
+            if cell_width.col_width is not None:
+                worksheet.column_dimensions[int_to_alpha(col_idx)].width = (
+                    cell_width.col_width // PIXEL_TO_EXCEL_WIDTH_RATIO
+                )

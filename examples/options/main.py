@@ -12,10 +12,7 @@ option_params = option_params.with_columns(
 )
 
 # Format option parameters
-(
-    option_params.style
-    .fmt_currency(columns=["value"])
-)
+(option_params.style.fmt_currency(columns=["value"]))
 
 # Make parameters editable
 option_params["value"][0].is_editable = True
@@ -30,24 +27,31 @@ option_table = el.ExcelFrame.empty(
 
 option_table = option_table.with_columns(
     stock_price=el.map(
-        lambda idx: el.cell(option_params["value"][2]) + (idx - 10) * 2.0  # Center at middle row (idx=10), +/- $2 per row
+        lambda idx: el.cell(option_params["value"][2])
+        + (idx - 10) * 2.0  # Center at middle row (idx=10), +/- $2 per row
     ),
     call_intrinsic=el.map(
-        lambda idx: el.max(el.col("stock_price") - el.cell(option_params["value"][0]), el.lit(0.0))
+        lambda idx: el.max(
+            el.col("stock_price") - el.cell(option_params["value"][0]), el.lit(0.0)
+        )
     ),
     call_profit_loss=el.map(
         lambda idx: el.col("call_intrinsic") - el.cell(option_params["value"][1])
     ),
     delta=el.map(
-        lambda idx: el.if_(el.col("stock_price") > el.cell(option_params["value"][0]), el.lit(1.0), el.lit(0.0))
+        lambda idx: el.if_(
+            el.col("stock_price") > el.cell(option_params["value"][0]),
+            el.lit(1.0),
+            el.lit(0.0),
+        )
     ),
 )
 
 # Format as currency and percentage
 (
-    option_table.style
-    .fmt_currency(columns=["stock_price", "call_intrinsic", "call_profit_loss"], accounting=True)
-    .fmt_number(columns=["delta"])
+    option_table.style.fmt_currency(
+        columns=["stock_price", "call_intrinsic", "call_profit_loss"], accounting=True
+    ).fmt_number(columns=["delta"])
 )
 
 sheet_styler = el.SheetStyler().cols_width({"A": 120, "B": 120, "C": 120, "D": 80})

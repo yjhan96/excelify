@@ -106,7 +106,10 @@ class ExcelifyViewerServer(rpc_pb2_grpc.ExcelifyViewerServicer):
             )
         display_data = self.scripts_to_data[script_path]
         el.to_excel(
-            display_data.dfs, file_path, index_path=(file_path.parent / "index.json")
+            display_data.dfs,
+            file_path,
+            index_path=(file_path.parent / "index.json"),
+            sheet_styler=display_data.sheet_styler,
         )
         return rpc_pb2.SaveFileResponse()
 

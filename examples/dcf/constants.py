@@ -16,7 +16,7 @@ assumptions_df = el.ExcelFrame(
 # assumptions_df["Current Share Price"].set_attributes({"bgcolor": "#000"})
 
 (
-    assumptions_df.style.fmt_currency(columns=["Current Share Price"]).fmt_number(
-        columns=["Effective Tax Rate"], decimals=2
-    ).display_horizontally()
+    assumptions_df.style.fmt_currency(columns=["Current Share Price"])
+    .fmt_number(columns=["Effective Tax Rate"], decimals=2)
+    .display_horizontally()
 )

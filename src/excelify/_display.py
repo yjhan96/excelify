@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Mapping, Sequence
 
 import openpyxl
-from lark import Lark
 
 from excelify._cell_mapping import CellMapping
 from excelify._col_conversion import alpha_to_int, int_to_alpha
@@ -18,6 +17,7 @@ from excelify._types import Pos
 from excelify.formula._parser import create_parser
 
 if TYPE_CHECKING:
+    from lark import Lark
     from excelify._excelframe import ExcelFrame
 
 
@@ -62,6 +62,7 @@ def to_excel(
     path: Path,
     *,
     index_path: Path | None = None,
+    sheet_styler: SheetStyler | None = None,
 ) -> None:
     """Writes possibly more than one ExcelFrames to an excel file to a given `path`.
     Specify `index_path` to write down the location index of the ExcelFrames to use it
@@ -95,6 +96,9 @@ def to_excel(
                 )
                 sheet_cell.value = formula  # type: ignore
                 df.style.format_value_excel(cell, sheet_cell)  # type: ignore
+
+    if sheet_styler is not None:
+        sheet_styler.set_style_excel(worksheet)
 
     workbook.save(path)
 
