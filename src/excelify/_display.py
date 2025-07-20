@@ -47,6 +47,17 @@ class DisplayData:
 def display(
     dfs: Sequence[tuple[ExcelFrame, tuple[int, int]]], sheet_styler: SheetStyler
 ):
+    """
+    Display the ExcelFrames to excelify-viewer. This function must be called at the end of the script to display
+    the tables.
+
+    Arguments:
+        dfs: Sequence of ExcelFrames and its starting positions, zero-indexed.
+        sheet_styler: Sheet Styler. Used to modify sheet-wide formatting.
+
+    Returns:
+        None
+    """
     data_path = Path(DATA_FILE)
     data_path.parent.mkdir(exist_ok=True)
 
