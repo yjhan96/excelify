@@ -11,6 +11,11 @@ To learn more, read Getting Started. TODO: Add a link.
 
 (Click the image above to go to a demo video.)
 
+## Installation
+```bash
+pip install excelify-lib
+```
+
 ## Example
 We'll create a table that demonstrates compounded interest.
 We first define an "emtpy table" using `el.ExcelFrame`:
