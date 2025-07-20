@@ -4,7 +4,7 @@
 
 Excelify is a DataFrame-like library that lets users create Excel spreadsheets.
 
-To learn more, read Getting Started. TODO: Add a link.
+Click [here](https://yjhan96.github.io/excelify/) for documentations.
 
 ## Demo
 [![excelify-viewer](https://img.youtube.com/vi/pVCHnAjNIsQ/0.jpg)](https://www.youtube.com/watch?v=pVCHnAjNIsQ)
