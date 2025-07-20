@@ -1,6 +1,6 @@
 [project]
-name = "excelify"
-version = "0.1.4"
+name = "excelify-lib"
+version = "0.1.0"
 description = "Create Excel spreadsheets with formulas using a DataFrame-like API"
 keywords = ["excel", "spreadsheet", "dataframe", "formulas", "xlsx"]
 classifiers = [
