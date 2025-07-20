@@ -109,3 +109,16 @@ shape: (3, 4)
 ```
 
 To export the ExcelFrame to excel, simply call `df.to_excel()`.
+
+## Excelify-Viewer
+[![excelify-viewer](https://img.youtube.com/vi/pVCHnAjNIsQ/0.jpg)](https://www.youtube.com/watch?v=pVCHnAjNIsQ)
+
+(Click the image above to go to a demo video.)
+
+To run excelify-viewer locally, you can run
+```bash
+excelify-viewer --file-path $FILE_NAME
+```
+where `FILE_NAME` points to the python script that constructs the table.
+The script must end with `excelify.display`. See files in `examples/` directory
+to see sample scripts.
