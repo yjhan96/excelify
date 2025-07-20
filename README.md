@@ -6,6 +6,11 @@ Excelify is a DataFrame-like library that lets users create Excel spreadsheets.
 
 To learn more, read Getting Started. TODO: Add a link.
 
+## Demo
+[![excelify-viewer](https://img.youtube.com/vi/pVCHnAjNIsQ/0.jpg)](https://www.youtube.com/watch?v=pVCHnAjNIsQ)
+
+(Click the image above to go to a demo video.)
+
 ## Example
 We'll create a table that demonstrates compounded interest.
 We first define an "emtpy table" using `el.ExcelFrame`:
@@ -111,9 +116,6 @@ shape: (3, 4)
 To export the ExcelFrame to excel, simply call `df.to_excel()`.
 
 ## Excelify-Viewer
-[![excelify-viewer](https://img.youtube.com/vi/pVCHnAjNIsQ/0.jpg)](https://www.youtube.com/watch?v=pVCHnAjNIsQ)
-
-(Click the image above to go to a demo video.)
 
 To run excelify-viewer locally, you can run
 ```bash
