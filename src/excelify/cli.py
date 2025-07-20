@@ -12,18 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 import click
-
-
-def get_repo_root() -> Path:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
-    return Path(repo_root)
 
 
 def shutdown_process(child_process: subprocess.Popen | None, process_name: str):
@@ -41,15 +34,14 @@ def shutdown_process(child_process: subprocess.Popen | None, process_name: str):
 @click.command()
 @click.option("--file-path", required=True, help="file path")
 def main(file_path):
-    repo_root = get_repo_root()
     executable_path = Path(sys.executable)
-    webapp_dir = repo_root
+    cwd = Path.cwd()
     webapp_cmd = [
         executable_path,
         "-m",
         "flask",
         "--app",
-        f'apps.excelify_viewer.backend.app:create_app("{file_path}", "{Path.cwd()}")',
+        f'apps.excelify_viewer.backend.app:create_app("{file_path}", "{cwd}")',
         "run",
         "--no-debugger",
         "--debug",
@@ -59,7 +51,7 @@ def main(file_path):
         "-m",
         "apps.excelify_viewer.server.server",
         "--working-dir",
-        ".",
+        str(cwd),
         "--file-path",
         str(file_path),
     ]
@@ -68,14 +60,14 @@ def main(file_path):
     try:
         backend_subprocess = subprocess.Popen(
             webapp_cmd,
-            cwd=str(webapp_dir),
+            cwd=str(cwd),
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
 
         server_subprocess = subprocess.Popen(
             server_command,
-            cwd=str(repo_root),
+            cwd=str(cwd),
             stdout=sys.stdout,
             stderr=sys.stderr,
         )

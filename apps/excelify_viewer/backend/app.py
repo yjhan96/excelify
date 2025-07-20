@@ -26,7 +26,7 @@ DATA_FILE = ".excelify-data/data.pickle"
 
 
 def create_app(file_path: str, cwd_str: str):
-    app = Flask(__name__, static_folder="../frontend/dist", static_url_path="/")
+    app = Flask(__name__, static_folder="./frontend_dist", static_url_path="/")
     app.config["DEBUG"] = True
     grpc_channel = grpc.insecure_channel("localhost:50051")
     rpc_stub = rpc_pb2_grpc.ExcelifyViewerStub(grpc_channel)
@@ -34,7 +34,7 @@ def create_app(file_path: str, cwd_str: str):
 
     @app.route("/")
     def serve_react_app():
-        return redirect(url_for("print_sheetname", sheet_name=file_path))
+        return redirect(url_for("print_sheetname", sheet_name=str(Path(file_path).resolve())[1:]))
 
     @app.route("/sheet/<path:sheet_name>")
     def print_sheetname(sheet_name):
@@ -46,7 +46,7 @@ def create_app(file_path: str, cwd_str: str):
         reset_request = request.get_json()
         script_path = reset_request["scriptPath"]
         assert script_path is not None
-        script_path = Path(script_path).resolve()
+        script_path = Path(f"/{script_path}")
 
         resp = rpc_stub.Reload(rpc_pb2.ReloadRequest(script_path=str(script_path)))
         dfs_json = json.loads(json_format.MessageToJson(resp.table))
@@ -56,7 +56,7 @@ def create_app(file_path: str, cwd_str: str):
     def get_sheet():
         script_path = request.args.get("scriptPath")
         assert script_path is not None
-        script_path = Path(script_path).resolve()
+        script_path = Path(f"/{script_path}")
         resp = rpc_stub.GetSheet(rpc_pb2.GetSheetRequest(script_path=str(script_path)))
         return json.loads(json_format.MessageToJson(resp.table))
 
@@ -65,7 +65,7 @@ def create_app(file_path: str, cwd_str: str):
         update_data = request.get_json()
         script_path = update_data["scriptPath"]
         assert script_path is not None
-        script_path = Path(script_path).resolve()
+        script_path = Path(f"/{script_path}")
 
         [row_idx, col_idx] = update_data["pos"]
         value = update_data["value"]

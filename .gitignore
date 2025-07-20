@@ -17,3 +17,6 @@ site/
 
 # excelify artifacts
 .excelify-data/
+
+# frontend dists
+apps/excelify_viewer/backend/frontend_dist/
