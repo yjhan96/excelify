@@ -12,6 +12,8 @@
         <link rel="prev" href="../getting_started/">
       
       
+        <link rel="next" href="../expressions/">
+      
       
       <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
@@ -442,6 +444,50 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../expressions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Expressions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../save_and_load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Saving & Loading
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -676,16 +722,16 @@ shape: (2, 2)
 +---+-------+-------+
 |   | x (A) | y (B) |
 +---+-------+-------+
-| 1 | 0.00  |  A1   |
-| 2 | 1.00  |  A2   |
+| 1 |   0   |  A1   |
+| 2 |   1   |  A2   |
 +---+-------+-------+
 &gt;&gt;&gt; df.evaluate()
 shape: (2, 2)
 +---+-------+-------+
 |   | x (A) | y (B) |
 +---+-------+-------+
-| 1 | 0.00  | 0.00  |
-| 2 | 1.00  | 1.00  |
+| 1 |   0   |   0   |
+| 2 |   1   |   1   |
 +---+-------+-------+
 
 </code></pre>
@@ -928,8 +974,8 @@ shape: (2, 2)
 +---+-------+-----------------+
 |   | x (A) | x_times_two (B) |
 +---+-------+-----------------+
-| 1 | 1.00  |      2.00       |
-| 2 | 2.00  |      4.00       |
+| 1 |   1   |        2        |
+| 2 |   2   |        4        |
 +---+-------+-----------------+
 
 </code></pre>
@@ -1002,7 +1048,7 @@ of the original table.</p>
 
 
 <a href="#excelify.ExcelFrame.select" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">select</span><span class="p">(</span><span class="n">columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ExcelFrame</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">select</span><span class="p">(</span><span class="n">columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Self</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -1017,16 +1063,20 @@ of the original table.</p>
 &gt;&gt;&gt; df = df.with_columns((el.col(&quot;x&quot;) + el.col(&quot;y&quot;)).alias(&quot;z&quot;))
 &gt;&gt;&gt; df.select([&quot;y&quot;, &quot;x&quot;, &quot;z&quot;])
 shape: (2, 3)
-+---+-------+-------+-----------+
-|   | y (A) | x (B) |   z (C)   |
-+---+-------+-------+-----------+
-| 1 | 4.00  | 1.00  | (B1 + A1) |
-| 2 | 5.00  | 2.00  | (B2 + A2) |
-+---+-------+-------+-----------+
++---+-------+-------+---------+
+|   | y (A) | x (B) |  z (C)  |
++---+-------+-------+---------+
+| 1 |   4   |   1   | B1 + A1 |
+| 2 |   5   |   2   | B2 + A2 |
++---+-------+-------+---------+
 &gt;&gt;&gt; df.select([&quot;x&quot;, &quot;z&quot;])
-Traceback (most recent call last):
-    ...
-KeyError: 'y'
+shape: (2, 2)
++---+-------+--------------+
+|   | x (A) |    z (B)     |
++---+-------+--------------+
+| 1 |   1   | A1 + ???:y:0 |
+| 2 |   2   | A2 + ???:y:1 |
++---+-------+--------------+
 
 </code></pre>
 </details>
@@ -1251,17 +1301,17 @@ shape: (2, 3)
 +---+-------+-------+--------------+
 |   | x (A) | y (B) | x_plus_y (C) |
 +---+-------+-------+--------------+
-| 1 | 1.00  | 3.00  |  (A1 + B1)   |
-| 2 | 2.00  | 4.00  |  (A2 + B2)   |
+| 1 |   1   |   3   |   A1 + B1    |
+| 2 |   2   |   4   |   A2 + B2    |
 +---+-------+-------+--------------+
 &gt;&gt;&gt; df.transpose(include_header=True)
 shape: (3, 3)
 +---+------------+--------------+--------------+
 |   | column (A) | column_0 (B) | column_1 (C) |
 +---+------------+--------------+--------------+
-| 1 |     x      |     1.00     |     2.00     |
-| 2 |     y      |     3.00     |     4.00     |
-| 3 |  x_plus_y  |  (B1 + B2)   |  (C1 + C2)   |
+| 1 |     x      |      1       |      2       |
+| 2 |     y      |      3       |      4       |
+| 3 |  x_plus_y  |   B1 + B2    |   C1 + C2    |
 +---+------------+--------------+--------------+
 
 </code></pre>
@@ -1365,34 +1415,33 @@ shape: (3, 3)
 
 
 <a href="#excelify.ExcelFrame.with_columns" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">with_columns</span><span class="p">(</span><span class="o">*</span><span class="n">exprs</span><span class="p">:</span> <span class="n">Expr</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExcelFrame</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">with_columns</span><span class="p">(</span><span class="o">*</span><span class="n">exprs</span><span class="p">:</span> <span class="n">Expr</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Adds or modifies the expression of the column to the table and returns a new ExcelFrame.</p>
+        <p>Adds or modifies an expression of the column to the table and returns a new ExcelFrame.</p>
 
 
 <details class="example" open>
   <summary>Example</summary>
   <pre><code class="language-pycon">&gt;&gt;&gt; import excelify as el
 &gt;&gt;&gt; df = el.ExcelFrame({&quot;x&quot;: [1, 2]})
-&gt;&gt;&gt; df = df.with_columns((el.col(&quot;x&quot;) * 2).alias(&quot;x_times_two&quot;))
-&gt;&gt;&gt; df = df.with_columns(el.lit([0, 0]).alias(&quot;cumulative_x_sum&quot;))
 &gt;&gt;&gt; df = df.with_columns(
 ...     el.map(
 ...         lambda idx: el.col(&quot;x&quot;)
 ...         if idx == 0
 ...         else el.col(&quot;cumulative_x_sum&quot;).prev(1) + el.col(&quot;x&quot;)
-...     ).alias(&quot;cumulative_x_sum&quot;)
+...     ).alias(&quot;cumulative_x_sum&quot;),
+...     x_times_two=el.col(&quot;x&quot;) * 2
 ... )
-&gt;&gt;&gt; df
+&gt;&gt;&gt; df.select([&quot;x&quot;, &quot;x_times_two&quot;, &quot;cumulative_x_sum&quot;])
 shape: (2, 3)
 +---+-------+-----------------+----------------------+
 |   | x (A) | x_times_two (B) | cumulative_x_sum (C) |
 +---+-------+-----------------+----------------------+
-| 1 | 1.00  |    (A1 * 2)     |          A1          |
-| 2 | 2.00  |    (A2 * 2)     |      (C1 + A2)       |
+| 1 |   1   |     A1 * 2      |          A1          |
+| 2 |   2   |     A2 * 2      |       C1 + A2        |
 +---+-------+-----------------+----------------------+
 
 </code></pre>
@@ -1414,7 +1463,7 @@ shape: (2, 3)
                 <code>*exprs</code>
             </td>
             <td>
-                  <code><span title="excelify._expr.Expr">Expr</span></code>
+                  <code><a class="autorefs autorefs-internal" title="Expr (excelify._expr.Expr)" href="../expressions/#excelify.Expr">Expr</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1423,6 +1472,21 @@ shape: (2, 3)
             </td>
             <td>
                   <code>()</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>**kwargs</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column expressions whose name will be determined by the argument name.</p>
+              </div>
+            </td>
+            <td>
+                  <code>{}</code>
             </td>
           </tr>
       </tbody>
@@ -1440,7 +1504,7 @@ shape: (2, 3)
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="ExcelFrame (excelify._excelframe.ExcelFrame)" href="#excelify.ExcelFrame">ExcelFrame</a></code>
+                  <code><span title="typing_extensions.Self">Self</span></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1501,8 +1565,8 @@ shape: (4, 2)
 +---+-------+-------+
 |   | x (A) | y (B) |
 +---+-------+-------+
-| 1 | 1.00  | 3.00  |
-| 2 | 2.00  | 4.00  |
+| 1 |   1   |   3   |
+| 2 |   2   |   4   |
 | 3 |  A1   |  B1   |
 | 4 |  A2   |  B2   |
 +---+-------+-------+
