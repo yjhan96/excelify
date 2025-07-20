@@ -6,7 +6,7 @@ Excelify is a DataFrame-like library that lets users create Excel spreadsheets.
 The easiest way to install is via pip.
 
 ```bash
-pip install excelify
+pip install excelify-lib
 ```
 
 ## Getting started
